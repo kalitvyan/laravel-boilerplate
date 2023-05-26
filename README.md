@@ -1,3 +1,23 @@
+## XDebug
+In order to enable Xdebug
+#### PHPStorm:
+- Go to `Settings` -> `PHP` -> `Server`.
+- Use path mappings for default server `0.0.0.0`.
+- In Project File section specified the Absolute path on the server - `/var/www/html` which corresponds to project root. 
+- Set Breakpoints.
+- Start listening for PHP Debug connection.
+- Disable Break at first line in PHP scripts.
+
+#### VSCode:
+- Install and enable [PHP Debug](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug), [Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker) and [Remote Explorer](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extensions.
+- Just set Breakpoints and run Debugging (F5).
+- VSCode configuration in `.vscode/launch.json`.
+  
+That's all.
+
+In both cases [XDebug helper](https://chrome.google.com/webstore/detail/xdebug-helper/eadndfjplgieldjbigjakmdgkmoaaaoc) need to be installed and enabled.
+
+
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">
