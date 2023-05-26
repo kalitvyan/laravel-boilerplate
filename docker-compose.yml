@@ -25,7 +25,6 @@ services:
         depends_on:
             - pgsql
             - redis
-            - meilisearch
             - mailpit
 
     pgsql:
@@ -66,24 +65,6 @@ services:
             retries: 3
             timeout: 5s
 
-    meilisearch:
-        image: 'getmeili/meilisearch:latest'
-        ports:
-            - '${FORWARD_MEILISEARCH_PORT:-7700}:7700'
-        volumes:
-            - 'sail-meilisearch:/meili_data'
-        networks:
-            - sail
-        healthcheck:
-            test:
-                - CMD
-                - wget
-                - '--no-verbose'
-                - '--spider'
-                - 'http://localhost:7700/health'
-            retries: 3
-            timeout: 5s
-
     mailpit:
         image: 'axllent/mailpit:latest'
         ports:
@@ -100,7 +81,5 @@ volumes:
     sail-pgsql:
         driver: local
     sail-redis:
-        driver: local
-    sail-meilisearch:
         driver: local
 
