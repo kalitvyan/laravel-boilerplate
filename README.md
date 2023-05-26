@@ -17,6 +17,13 @@ That's all.
 
 In both cases [XDebug helper](https://chrome.google.com/webstore/detail/xdebug-helper/eadndfjplgieldjbigjakmdgkmoaaaoc) need to be installed and enabled.
 
+## Redis
+- Customize the configuration you may in `docker/redis/redis.conf`
+#### Running Redis CLI in Container:
+
+```bash
+docker exec -it redis redis-cli
+```
 
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
