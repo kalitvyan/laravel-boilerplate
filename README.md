@@ -1,3 +1,10 @@
+## Stack
+- PHP `8.2.6`
+- Composer `2.5.7`
+- Nginx `1.25`
+- PostgreSQL `15.3`
+- Redis `7.0.11`
+
 ## XDebug
 In order to enable Xdebug
 #### PHPStorm:
@@ -16,6 +23,9 @@ In order to enable Xdebug
 That's all.
 
 In both cases [XDebug helper](https://chrome.google.com/webstore/detail/xdebug-helper/eadndfjplgieldjbigjakmdgkmoaaaoc) need to be installed and enabled.
+
+## Nginx
+
 
 ## Redis
 - Customize the configuration you may in `docker/redis/redis.conf`
@@ -91,3 +101,18 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## Stack
+PHP 8.2
+Laravel 10.10
+PostgreSQL 15
+
+## PostgreSQL
+#### Run container:
+```bash
+docker exec -it database bash
+```
+#### Run console:
+```bash
+psql -U sail -d laravel_boilerplate
+```
