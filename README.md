@@ -1,9 +1,15 @@
 ## Stack
 - PHP `8.2.6`
-- Composer `2.5.7`
-- Nginx `1.25`
+- Composer `latest`
+- Nginx `1.25.0`
 - PostgreSQL `15.3`
 - Redis `7.0.11`
+
+## Run dev enviroment
+```bash
+make build
+make start
+```
 
 ## XDebug
 In order to enable Xdebug
