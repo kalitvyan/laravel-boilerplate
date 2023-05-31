@@ -98,6 +98,7 @@ RUN mkdir -p $APP_HOME/public && \
 # Put php config for Laravel.
 COPY ./docker/php/$BUILD_ENV/www.conf /usr/local/etc/php-fpm.d/www.conf
 COPY ./docker/php/$BUILD_ENV/php.ini /usr/local/etc/php/php.ini
+COPY ./docker/php/$BUILD_ENV/opcache.ini /usr/local/etc/php/opcache.ini
 
 # Install Composer.
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
