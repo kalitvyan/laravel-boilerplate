@@ -37,6 +37,7 @@ services:
             - laravel-network
         depends_on:
             - pgsql
+            - redis
 
     pgsql:
         image: 'postgres:15'
@@ -62,13 +63,14 @@ services:
         build:
             context: ./docker/redis
             dockerfile: Dockerfile
-        image: 'boilerplate/redis'
-        container_name: redis
+        image: '${COMPOSE_PROJECT_NAME}/redis:latest'
+        container_name: ${COMPOSE_PROJECT_NAME}-redis
+        restart: always
         ports:
             - '${FORWARD_REDIS_PORT:-6379}:6379'
         command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
         volumes:
-            - 'sail-redis:/data'
+            - './storage/data/redis:/data:delegated'
             - './docker/redis/redis.conf:/var/local/etc/redis/redis.conf'
         networks:
             - laravel-network
@@ -88,11 +90,10 @@ services:
 
 networks:
     laravel-network:
+        name: laravel-network
         driver: bridge
 
 volumes:
     sail-pgsql:
-        driver: local
-    sail-redis:
         driver: local
 
