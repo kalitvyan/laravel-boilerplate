@@ -1,34 +1,5 @@
-version: '3'
+version: '3.5'
 services:
-#    laravel.test:
-#        build:
-#            context: ./vendor/laravel/sail/runtimes/8.2
-#            dockerfile: Dockerfile
-#            args:
-#                WWWGROUP: '${WWWGROUP}'
-#        image: sail-8.2/app
-#        extra_hosts:
-#            - 'host.docker.internal:host-gateway'
-#        ports:
-#            - '${APP_PORT:-80}:80'
-#            - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
-#        environment:
-#            WWWUSER: '${WWWUSER}'
-#            LARAVEL_SAIL: 1
-#            XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
-#            XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
-
-#        depends_on:
-#            - pgsql
-#            - redis
-#            - mailpit
-
-
-#        volumes:
-#            - './docker/nginx/ssl/:/etc/nginx/ssl'
-#            - './docker/logs/nginx/:/var/log/nginx'
-#            - './docker/nginx/sites/:/etc/nginx/sites-available'
-
     nginx:
         build:
             context: ./docker/nginx
@@ -41,6 +12,7 @@ services:
         ports:
             - '${FORWARD_NGINX_HTTP_PORT:-80}:80'
             - '${FORWARD_NGINX_HTTPS_PORT:-443}:443'
+            - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
         volumes:
             - './:/var/www/html:ro,cached'
         networks:
@@ -54,74 +26,73 @@ services:
             dockerfile: Dockerfile
             args:
                 BUILD_ENV: dev
-                HOST_UID: ${HOST_UID}
-                HOST_GID: ${HOST_GID}
         image: '${COMPOSE_PROJECT_NAME}/laravel:latest'
         container_name: ${COMPOSE_PROJECT_NAME}-laravel
+        restart: always
         environment:
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
         volumes:
             - './:/var/www/html:cached'
         networks:
             - laravel-network
-#        depends_on:
-#            - pgsql
+        depends_on:
+            - pgsql
 
-#    pgsql:
-#        image: 'postgres:15'
-#        container_name: database
-#        ports:
-#            - '${FORWARD_DB_PORT:-5432}:5432'
-#        environment:
-#            PGPASSWORD: '${DB_PASSWORD:-secret}'
-#            POSTGRES_DB: '${DB_DATABASE}'
-#            POSTGRES_USER: '${DB_USERNAME}'
-#            POSTGRES_PASSWORD: '${DB_PASSWORD:-secret}'
-#        volumes:
-#            - 'sail-pgsql:/var/lib/postgresql/data'
+    pgsql:
+        image: 'postgres:15'
+        container_name: database
+        ports:
+            - '${FORWARD_DB_PORT:-5432}:5432'
+        environment:
+            PGPASSWORD: '${DB_PASSWORD:-secret}'
+            POSTGRES_DB: '${DB_DATABASE}'
+            POSTGRES_USER: '${DB_USERNAME}'
+            POSTGRES_PASSWORD: '${DB_PASSWORD:-secret}'
+        volumes:
+            - 'sail-pgsql:/var/lib/postgresql/data'
 #            - './vendor/laravel/sail/database/pgsql/create-testing-database.sql:/docker-entrypoint-initdb.d/10-create-testing-database.sql'
-#        networks:
-#            - sail
-#        healthcheck:
-#            test: ["CMD", "pg_isready", "-q", "-d", "${DB_DATABASE}", "-U", "${DB_USERNAME}"]
-#            retries: 3
-#            timeout: 5s
+        networks:
+            - laravel-network
+        healthcheck:
+            test: ["CMD", "pg_isready", "-q", "-d", "${DB_DATABASE}", "-U", "${DB_USERNAME}"]
+            retries: 3
+            timeout: 5s
 
-#    redis:
-#        build:
-#            context: ./docker/redis
-#            dockerfile: Dockerfile
-#        image: 'boilerplate/redis'
-#        container_name: redis
-#        ports:
-#            - '${FORWARD_REDIS_PORT:-6379}:6379'
-#        command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
-#        volumes:
-#            - 'sail-redis:/data'
-#            - './docker/redis/redis.conf:/var/local/etc/redis/redis.conf'
-#        networks:
-#            - sail
-#        healthcheck:
-#            test: ["CMD", "redis-cli", "ping"]
-#            retries: 3
-#            timeout: 5s
+    redis:
+        build:
+            context: ./docker/redis
+            dockerfile: Dockerfile
+        image: 'boilerplate/redis'
+        container_name: redis
+        ports:
+            - '${FORWARD_REDIS_PORT:-6379}:6379'
+        command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+        volumes:
+            - 'sail-redis:/data'
+            - './docker/redis/redis.conf:/var/local/etc/redis/redis.conf'
+        networks:
+            - laravel-network
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            retries: 3
+            timeout: 5s
 
-#    mailpit:
-#        image: 'axllent/mailpit:latest'
-#        container_name: mail
-#        ports:
-#            - '${FORWARD_MAILPIT_PORT:-1025}:1025'
-#            - '${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
-#        networks:
-#            - sail
+    mailpit:
+        image: 'axllent/mailpit:latest'
+        container_name: mail
+        ports:
+            - '${FORWARD_MAILPIT_PORT:-1025}:1025'
+            - '${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
+        networks:
+            - laravel-network
 
 networks:
     laravel-network:
         driver: bridge
 
-#volumes:
-#    sail-pgsql:
-#        driver: local
-#    sail-redis:
-#        driver: local
+volumes:
+    sail-pgsql:
+        driver: local
+    sail-redis:
+        driver: local
 

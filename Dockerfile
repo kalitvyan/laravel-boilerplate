@@ -3,10 +3,7 @@ FROM php:8.2.6-fpm
 # Set main params.
 ARG BUILD_ENV=dev
 ENV ENV=$BUILD_ENV
-ENV APP_HOME=/var/www/html
-ARG HOST_UID=1000
-ARG HOST_GID=1000
-ENV USERNAME=www-data
+
 ARG IS_DOCKER_CONTAINER=1
 ENV IS_DOCKER_CONTAINER=$IS_DOCKER_CONTAINER
 
@@ -76,22 +73,17 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
         sockets \
         zip
 
+# TODO: deal something with PHP extensions. Installing it from ome place, may be apt?ьфлу
+
 # Install PHP extensions which are didn't supported in official image.
 COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
 RUN install-php-extensions http redis xdebug
 
 # Install PECL extensions
-#RUN set -ex && \
-#    pecl install mcrypt && \
-#    pecl install redis && \
-#    docker-php-ext-enable redis
-
-# Create document root, fix permissions for www-data user and change owner to www-data
-RUN mkdir -p $APP_HOME/public && \
-    mkdir -p /home/$USERNAME && chown $USERNAME:$USERNAME /home/$USERNAME && \
-    usermod -o -u $HOST_UID $USERNAME -d /home/$USERNAME && \
-    groupmod -o -g $HOST_GID $USERNAME && \
-    chown -R ${USERNAME}:${USERNAME} $APP_HOME
+# RUN set -ex && \
+#     pecl install mcrypt && \
+#     pecl install redis && \
+#     docker-php-ext-enable redis
 
 # Put php config for Laravel.
 COPY ./docker/php/$BUILD_ENV/www.conf /usr/local/etc/php-fpm.d/www.conf
@@ -102,34 +94,6 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 RUN chmod +x /usr/bin/composer
 ENV COMPOSER_ALLOW_SUPERUSER 1
 
-# Install Xdebug in case dev environment.
-#COPY ./docker/general/do_we_need_xdebug.sh /tmp/
-#COPY ./docker/dev/xdebug-${XDEBUG_CONFIG}.ini /tmp/xdebug.ini
-#RUN chmod u+x /tmp/do_we_need_xdebug.sh && /tmp/do_we_need_xdebug.sh
-
-# add supervisor
-#RUN mkdir -p /var/log/supervisor
-#COPY --chown=root:root ./docker/general/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-#COPY --chown=root:crontab ./docker/general/cron /var/spool/cron/crontabs/root
-#RUN chmod 0600 /var/spool/cron/crontabs/root
-
-# Install Cron.
-#RUN apt-get update && apt-get install -y cron
-#RUN echo "* * * * * root php /var/www/artisan schedule:run >> /var/log/cron.log 2>&1" >> /etc/crontab
-#RUN touch /var/log/cron.log
-
-# Set working directory.
-WORKDIR $APP_HOME
-
-USER ${USERNAME}
-
-# Copy source files and config file.
-COPY --chown=${USERNAME}:${USERNAME} . $APP_HOME/
-COPY --chown=${USERNAME}:${USERNAME} .env.$ENV $APP_HOME/.env
-
-# Install all PHP dependencies in case dev env.
-RUN if [ "$BUILD_ENV" == "dev" ]; then composer install --optimize-autoloader --no-interaction --no-progress; \
-      else composer install --optimize-autoloader --no-interaction --no-progress --no-dev; \
-    fi
-
-USER root
+# Install Composer with specified version.
+# ARG COMPOSER_VERSION=2.5.7
+# RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer -version=$COMPOSER_VERSION

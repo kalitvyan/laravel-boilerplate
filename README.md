@@ -1,15 +1,24 @@
 ## Stack
 - PHP `8.2.6`
 - Composer `latest`
+- Laravel `10.12.0`
 - Nginx `1.25.0`
 - PostgreSQL `15.3`
 - Redis `7.0.11`
 
-## Run dev enviroment
+## Run Development environment
 ```bash
+# Creates config for dev environment.
+make env-dev
+
+# Build dev environment.
 make build
+
+# Start dev environment.
 make start
 ```
+
+Welcome: http://localhost.
 
 ## XDebug
 In order to enable Xdebug
