@@ -53,9 +53,23 @@ else
 	$(ERROR_ONLY_FOR_HOST)
 endif
 
+shell-supervisord: ## Get bash inside supervisord docker container (cron jobs running there, etc...).
+ifeq ($(IS_DOCKER_CONTAINER), 0)
+	@HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) docker compose $(PROJECT_NAME) exec supervisord bash
+else
+	$(ERROR_ONLY_FOR_HOST)
+endif
+
 logs-pgsql: ## Shows logs from the postgresql container. Use ctrl+c in order to exit.
 ifeq ($(IS_DOCKER_CONTAINER), 0)
 	@docker logs -f ${COMPOSE_PROJECT_NAME}-postrgesql
+else
+	$(ERROR_ONLY_FOR_HOST)
+endif
+
+logs-supervisord: ## Shows logs from the supervisord container. Use ctrl+c in order to exit.
+ifeq ($(IS_DOCKER_CONTAINER), 0)
+	@docker logs -f ${COMPOSE_PROJECT_NAME}-supervisord
 else
 	$(ERROR_ONLY_FOR_HOST)
 endif

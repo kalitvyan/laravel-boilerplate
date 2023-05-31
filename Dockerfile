@@ -108,6 +108,12 @@ ENV COMPOSER_ALLOW_SUPERUSER 1
 # ARG COMPOSER_VERSION=2.5.7
 # RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer -version=$COMPOSER_VERSION
 
+# Add supervisor
+RUN mkdir -p /var/log/supervisor
+COPY --chown=root:root ./docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY --chown=root:crontab ./docker/cron /var/spool/cron/crontabs/root
+RUN chmod 0600 /var/spool/cron/crontabs/root
+
 # Set working directory.
 WORKDIR $APP_HOME
 

@@ -20,7 +20,7 @@ services:
         depends_on:
             - laravel
 
-    laravel:
+    laravel: &laravel-template
         build:
             context: .
             dockerfile: Dockerfile
@@ -40,6 +40,12 @@ services:
         depends_on:
             - pgsql
             - redis
+
+    supervisord:
+        <<: *laravel-template
+        container_name: ${COMPOSE_PROJECT_NAME}-supervisord
+        expose: []
+        command: ["/usr/bin/supervisord"]
 
     pgsql:
         build:
