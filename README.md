@@ -44,6 +44,14 @@ In both cases [XDebug helper](https://chrome.google.com/webstore/detail/xdebug-h
 
 ## Nginx
 
+## PostgreSQL
+```bash
+# Run shell in container.
+make shell-pgsql
+
+# Show postgresql logs.
+make logs-pgsql
+```
 
 ## Redis
 - Customize the configuration you may in `docker/redis/redis.conf`
@@ -119,18 +127,3 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-
-## Stack
-PHP 8.2
-Laravel 10.10
-PostgreSQL 15
-
-## PostgreSQL
-#### Run container:
-```bash
-docker exec -it database bash
-```
-#### Run console:
-```bash
-psql -U sail -d laravel_boilerplate
-```

@@ -42,18 +42,21 @@ services:
             - redis
 
     pgsql:
-        image: 'postgres:15'
-        container_name: database
+        build:
+            context: ./docker/postgresql
+            dockerfile: Dockerfile
+        image: '${COMPOSE_PROJECT_NAME}/postrgesql:latest'
+        container_name: ${COMPOSE_PROJECT_NAME}-postrgesql
         ports:
             - '${FORWARD_DB_PORT:-5432}:5432'
         environment:
-            PGPASSWORD: '${DB_PASSWORD:-secret}'
+            PGPASSWORD: '${DB_PASSWORD}'
             POSTGRES_DB: '${DB_DATABASE}'
             POSTGRES_USER: '${DB_USERNAME}'
-            POSTGRES_PASSWORD: '${DB_PASSWORD:-secret}'
+            POSTGRES_PASSWORD: '${DB_PASSWORD}'
         volumes:
-            - 'sail-pgsql:/var/lib/postgresql/data'
-#            - './vendor/laravel/sail/database/pgsql/create-testing-database.sql:/docker-entrypoint-initdb.d/10-create-testing-database.sql'
+            - './storage/data/postgresql:/var/lib/postgresql/data:delegated'
+            - './docker/postgresql/dev/create-testing-database.sql:/docker-entrypoint-initdb.d/10-create-testing-database.sql'
         networks:
             - laravel-network
         healthcheck:
@@ -94,8 +97,4 @@ networks:
     laravel-network:
         name: laravel-network
         driver: bridge
-
-volumes:
-    sail-pgsql:
-        driver: local
 

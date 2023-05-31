@@ -46,6 +46,20 @@ restart: stop start ## Stop and start dev environment.
 env-dev: ## Creates config for dev environment.
 	cp ./.env.dev ./.env
 
+shell-pgsql: ## Get bash inside postgresql docker container.
+ifeq ($(IS_DOCKER_CONTAINER), 0)
+	@HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) docker compose $(PROJECT_NAME) exec pgsql bash
+else
+	$(ERROR_ONLY_FOR_HOST)
+endif
+
+logs-pgsql: ## Shows logs from the postgresql container. Use ctrl+c in order to exit.
+ifeq ($(IS_DOCKER_CONTAINER), 0)
+	@docker logs -f ${COMPOSE_PROJECT_NAME}-postrgesql
+else
+	$(ERROR_ONLY_FOR_HOST)
+endif
+
 exec-bash:
 ifeq ($(IS_DOCKER_CONTAINER), 1)
 	@bash -c "$(cmd)"
