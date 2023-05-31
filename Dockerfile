@@ -3,12 +3,12 @@ FROM php:8.2.6-fpm
 # Set main params.
 ARG BUILD_ENV=dev
 ENV ENV=$BUILD_ENV
-ENV APP_HOME /var/www/html
+ENV APP_HOME=/var/www/html
 ARG HOST_UID=1000
 ARG HOST_GID=1000
 ENV USERNAME=www-data
-ARG INSIDE_DOCKER_CONTAINER=1
-ENV INSIDE_DOCKER_CONTAINER=$INSIDE_DOCKER_CONTAINER
+ARG IS_DOCKER_CONTAINER=1
+ENV IS_DOCKER_CONTAINER=$IS_DOCKER_CONTAINER
 
 # Install packages and dependencies.
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
@@ -102,7 +102,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 RUN chmod +x /usr/bin/composer
 ENV COMPOSER_ALLOW_SUPERUSER 1
 
-# Install Xdebug in case dev/test environment.
+# Install Xdebug in case dev environment.
 #COPY ./docker/general/do_we_need_xdebug.sh /tmp/
 #COPY ./docker/dev/xdebug-${XDEBUG_CONFIG}.ini /tmp/xdebug.ini
 #RUN chmod u+x /tmp/do_we_need_xdebug.sh && /tmp/do_we_need_xdebug.sh
@@ -127,9 +127,9 @@ USER ${USERNAME}
 COPY --chown=${USERNAME}:${USERNAME} . $APP_HOME/
 COPY --chown=${USERNAME}:${USERNAME} .env.$ENV $APP_HOME/.env
 
-# Install all PHP dependencies in case dev/test env.
-RUN if [ "$BUILD_ENV" = "dev" ]; then COMPOSER_MEMORY_LIMIT=-1 composer install --optimize-autoloader --no-interaction --no-progress; \
-      else COMPOSER_MEMORY_LIMIT=-1 composer install --optimize-autoloader --no-interaction --no-progress --no-dev; \
+# Install all PHP dependencies in case dev env.
+RUN if [ "$BUILD_ENV" == "dev" ]; then composer install --optimize-autoloader --no-interaction --no-progress; \
+      else composer install --optimize-autoloader --no-interaction --no-progress --no-dev; \
     fi
 
 USER root
