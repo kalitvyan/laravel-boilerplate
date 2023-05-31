@@ -1,34 +1,46 @@
-version: '3'
+version: '3.5'
 services:
-    laravel.test:
+    nginx:
         build:
-            context: ./vendor/laravel/sail/runtimes/8.2
+            context: ./docker/nginx
             dockerfile: Dockerfile
             args:
-                WWWGROUP: '${WWWGROUP}'
-        image: sail-8.2/app
-        extra_hosts:
-            - 'host.docker.internal:host-gateway'
+                BUILD_ENV: dev
+        image: '${COMPOSE_PROJECT_NAME}/nginx:latest'
+        container_name: ${COMPOSE_PROJECT_NAME}-nginx
+        restart: always
         ports:
-            - '${APP_PORT:-80}:80'
+            - '${FORWARD_NGINX_HTTP_PORT:-80}:80'
+            - '${FORWARD_NGINX_HTTPS_PORT:-443}:443'
             - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
+        volumes:
+            - './:/var/www/html:ro,cached'
+        networks:
+            - laravel-network
+        depends_on:
+            - laravel
+
+    laravel:
+        build:
+            context: .
+            dockerfile: Dockerfile
+            args:
+                BUILD_ENV: dev
+        image: '${COMPOSE_PROJECT_NAME}/laravel:latest'
+        container_name: ${COMPOSE_PROJECT_NAME}-laravel
+        restart: always
         environment:
-            WWWUSER: '${WWWUSER}'
-            LARAVEL_SAIL: 1
-            XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
-            XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
         volumes:
-            - '.:/var/www/html'
+            - './:/var/www/html:cached'
         networks:
-            - sail
+            - laravel-network
         depends_on:
             - pgsql
-            - redis
-            - mailpit
 
     pgsql:
         image: 'postgres:15'
+        container_name: database
         ports:
             - '${FORWARD_DB_PORT:-5432}:5432'
         environment:
@@ -38,9 +50,9 @@ services:
             POSTGRES_PASSWORD: '${DB_PASSWORD:-secret}'
         volumes:
             - 'sail-pgsql:/var/lib/postgresql/data'
-            - './vendor/laravel/sail/database/pgsql/create-testing-database.sql:/docker-entrypoint-initdb.d/10-create-testing-database.sql'
+#            - './vendor/laravel/sail/database/pgsql/create-testing-database.sql:/docker-entrypoint-initdb.d/10-create-testing-database.sql'
         networks:
-            - sail
+            - laravel-network
         healthcheck:
             test: ["CMD", "pg_isready", "-q", "-d", "${DB_DATABASE}", "-U", "${DB_USERNAME}"]
             retries: 3
@@ -59,7 +71,7 @@ services:
             - 'sail-redis:/data'
             - './docker/redis/redis.conf:/var/local/etc/redis/redis.conf'
         networks:
-            - sail
+            - laravel-network
         healthcheck:
             test: ["CMD", "redis-cli", "ping"]
             retries: 3
@@ -67,14 +79,15 @@ services:
 
     mailpit:
         image: 'axllent/mailpit:latest'
+        container_name: mail
         ports:
             - '${FORWARD_MAILPIT_PORT:-1025}:1025'
             - '${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
         networks:
-            - sail
+            - laravel-network
 
 networks:
-    sail:
+    laravel-network:
         driver: bridge
 
 volumes:
