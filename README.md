@@ -16,6 +16,9 @@ make build
 
 # Start dev environment.
 make start
+
+# Installs composer dependencies.
+make composer-install
 ```
 
 Welcome: http://localhost.

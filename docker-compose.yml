@@ -26,6 +26,8 @@ services:
             dockerfile: Dockerfile
             args:
                 BUILD_ENV: dev
+                HOST_UID: ${HOST_UID}
+                HOST_GID: ${HOST_GID}
         image: '${COMPOSE_PROJECT_NAME}/laravel:latest'
         container_name: ${COMPOSE_PROJECT_NAME}-laravel
         restart: always
