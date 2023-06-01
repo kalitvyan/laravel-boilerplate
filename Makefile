@@ -46,6 +46,20 @@ restart: stop start ## Stop and start dev environment.
 env-dev: ## Creates config for dev environment.
 	cp ./.env.dev ./.env
 
+shell: ## Get bash inside laravel docker container.
+ifeq ($(IS_DOCKER_CONTAINER), 0)
+	@HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) docker compose $(PROJECT_NAME) exec $(OPTION_T) $(PHP_USER) laravel bash
+else
+	$(ERROR_ONLY_FOR_HOST)
+endif
+
+shell-root: ## Get bash as root user inside laravel docker container.
+ifeq ($(IS_DOCKER_CONTAINER), 0)
+	@HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) docker compose $(PROJECT_NAME) exec $(OPTION_T) laravel bash
+else
+	$(ERROR_ONLY_FOR_HOST)
+endif
+
 shell-pgsql: ## Get bash inside postgresql docker container.
 ifeq ($(IS_DOCKER_CONTAINER), 0)
 	@HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) docker compose $(PROJECT_NAME) exec pgsql bash
@@ -60,14 +74,28 @@ else
 	$(ERROR_ONLY_FOR_HOST)
 endif
 
-logs-pgsql: ## Shows logs from the postgresql container. Use ctrl+c in order to exit.
+logs: ## Shows logs from the laravel container. Use ctrl+c in order to exit.
+ifeq ($(IS_DOCKER_CONTAINER), 0)
+	@docker logs -f ${COMPOSE_PROJECT_NAME}-laravel
+else
+	$(ERROR_ONLY_FOR_HOST)
+endif
+
+logs-nginx: ## Shows logs from the nginx container.
+ifeq ($(IS_DOCKER_CONTAINER), 0)
+	@docker logs -f ${COMPOSE_PROJECT_NAME}-nginx
+else
+	$(ERROR_ONLY_FOR_HOST)
+endif
+
+logs-pgsql: ## Shows logs from the postgresql container.
 ifeq ($(IS_DOCKER_CONTAINER), 0)
 	@docker logs -f ${COMPOSE_PROJECT_NAME}-postrgesql
 else
 	$(ERROR_ONLY_FOR_HOST)
 endif
 
-logs-supervisord: ## Shows logs from the supervisord container. Use ctrl+c in order to exit.
+logs-supervisord: ## Shows logs from the supervisord container.
 ifeq ($(IS_DOCKER_CONTAINER), 0)
 	@docker logs -f ${COMPOSE_PROJECT_NAME}-supervisord
 else
