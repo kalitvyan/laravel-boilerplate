@@ -31,7 +31,10 @@ services:
         image: '${COMPOSE_PROJECT_NAME}/laravel:latest'
         container_name: ${COMPOSE_PROJECT_NAME}-laravel
         restart: always
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
         environment:
+            PHP_IDE_CONFIG: "serverName=0.0.0.0"
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
         volumes:
             - './:/var/www/html:cached'

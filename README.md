@@ -1,5 +1,6 @@
 ## Stack
 - PHP `8.2.6`
+- XDebug `latest`
 - Composer `latest`
 - Laravel `10.12.0`
 - Nginx `1.25.0`
@@ -26,12 +27,13 @@ Welcome: http://localhost.
 ## XDebug
 In order to enable Xdebug
 #### PHPStorm:
-- Go to `Settings` -> `PHP` -> `Server`.
-- Use path mappings for default server `0.0.0.0`.
-- In Project File section specified the Absolute path on the server - `/var/www/html` which corresponds to project root. 
-- Set Breakpoints.
 - Start listening for PHP Debug connection.
-- Disable Break at first line in PHP scripts.
+- Go to `Setting` -> `PHP` -> `Debug`. Click `Validate` add select `Local Web Server or Shared Folder`. Add `public` in `Path to create validation script` and run `Validation`. Everything must be success.
+- Also disable `Break at first line in PHP scripts` in Debug section.
+- Go to `Settings` -> `PHP` -> `Server`. Use path mappings for default server `0.0.0.0`. In Project File section specified the Absolute path on the server - `/var/www/html` which corresponds to project root.
+- Apply remote configuration that stored in `.run/remote.run.xml`.
+- Set Breakpoints.
+- Start debugging.
 
 #### VSCode:
 - Install and enable [PHP Debug](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug), [Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker) and [Remote Explorer](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extensions.
@@ -41,6 +43,8 @@ In order to enable Xdebug
 That's all.
 
 In both cases [XDebug helper](https://chrome.google.com/webstore/detail/xdebug-helper/eadndfjplgieldjbigjakmdgkmoaaaoc) need to be installed and enabled.
+
+Customize the configuration you may in `docker/php/dev/xdebug.ini`. Available only in `dev` and `test` environments.
 
 ## Nginx
 

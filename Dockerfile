@@ -76,17 +76,16 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
         sockets \
         zip
 
-# TODO: deal something with PHP extensions. Installing it from ome place, may be apt?ьфлу
+# TODO: deal something with PHP extensions. Installing it from ome place, may be apt?
 
 # Install PHP extensions which are didn't supported in official image.
-COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
-RUN install-php-extensions http redis xdebug
+# COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
+# RUN install-php-extensions http
 
-# Install PECL extensions
-# RUN set -ex && \
-#     pecl install mcrypt && \
-#     pecl install redis && \
-#     docker-php-ext-enable redis
+# Install PECL extensions.
+RUN set -ex && \
+    pecl install redis && \
+    docker-php-ext-enable redis
 
 # Create document root, fix permissions for www-data user and change owner to www-data.
 RUN mkdir -p $APP_HOME/public && \
@@ -100,6 +99,11 @@ COPY ./docker/php/$BUILD_ENV/www.conf /usr/local/etc/php-fpm.d/www.conf
 COPY ./docker/php/$BUILD_ENV/php.ini /usr/local/etc/php/php.ini
 COPY ./docker/php/$BUILD_ENV/opcache.ini /usr/local/etc/php/opcache.ini
 
+# Install Xdebug in case dev/test environment.
+COPY ./docker/php/dev/xdebug.sh /tmp/
+COPY ./docker/php/dev/xdebug.ini /tmp/xdebug.ini
+RUN chmod u+x /tmp/xdebug.sh && /tmp/xdebug.sh
+
 # Install Composer.
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 RUN chmod +x /usr/bin/composer
@@ -109,7 +113,7 @@ ENV COMPOSER_ALLOW_SUPERUSER 1
 # ARG COMPOSER_VERSION=2.5.7
 # RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer -version=$COMPOSER_VERSION
 
-# Add supervisor
+# Add supervisor.
 RUN mkdir -p /var/log/supervisor
 COPY --chown=root:root ./docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY --chown=root:crontab ./docker/cron /var/spool/cron/crontabs/root
@@ -125,7 +129,7 @@ COPY --chown=${USERNAME}:${USERNAME} . $APP_HOME/
 COPY --chown=${USERNAME}:${USERNAME} .env.$ENV $APP_HOME/.env
 
 # Install all PHP dependencies
-RUN if [ "$BUILD_ENV" == "dev" ]; then COMPOSER_MEMORY_LIMIT=-1 composer install --optimize-autoloader --no-interaction --no-progress; \
+RUN if [ "$BUILD_ENV" == "dev" ] || [ "$BUILD_ENV" == "test" ]; then COMPOSER_MEMORY_LIMIT=-1 composer install --optimize-autoloader --no-interaction --no-progress; \
     else COMPOSER_MEMORY_LIMIT=-1 composer install --optimize-autoloader --no-interaction --no-progress --no-dev; \
     fi
 
