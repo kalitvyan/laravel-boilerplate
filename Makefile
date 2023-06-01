@@ -102,6 +102,13 @@ else
 	$(ERROR_ONLY_FOR_HOST)
 endif
 
+exec:
+ifeq ($(IS_DOCKER_CONTAINER), 1)
+	@$$cmd
+else
+	@HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) docker compose $(PROJECT_NAME) exec $(OPTION_T) $(PHP_USER) laravel $$cmd
+endif
+
 exec-bash:
 ifeq ($(IS_DOCKER_CONTAINER), 1)
 	@bash -c "$(cmd)"
@@ -110,10 +117,32 @@ else
 endif
 
 composer-install-no-dev: ## Installs composer no-dev dependencies.
-	@make exec-bash cmd="COMPOSER_MEMORY_LIMIT=-1 composer install --optimize-autoloader --no-dev"
+	@make -s exec-bash cmd="COMPOSER_MEMORY_LIMIT=-1 composer install --optimize-autoloader --no-dev"
 
 composer-install: ## Installs composer dependencies.
-	@make exec-bash cmd="COMPOSER_MEMORY_LIMIT=-1 composer install --optimize-autoloader"
+	@make -s exec-bash cmd="COMPOSER_MEMORY_LIMIT=-1 composer install --optimize-autoloader"
 
 composer-update: ## Updates composer dependencies.
-	@make exec-bash cmd="COMPOSER_MEMORY_LIMIT=-1 composer update"
+	@make -s exec-bash cmd="COMPOSER_MEMORY_LIMIT=-1 composer update"
+
+key-gen: ## Sets Laravel application key.
+	@make -s exec cmd="php artisan key:generate"
+
+migrate: ## Runs all migrations for main database.
+	@make -s exec cmd="php artisan migrate --force"
+
+migrate-with-test: ## Runs all migrations for main/test databases.
+	@make -s exec cmd="php artisan migrate --force"
+	# @make -s exec cmd="php artisan migrate --force --env=test"
+
+migrate-fresh: ## Drops databases and runs all migrations for the main/test databases.
+	@make -s exec cmd="php artisan migrate:fresh"
+	# @make -s exec cmd="php artisan migrate:fresh --env=test"
+
+seed: ## Runs all seeds.
+	@make -s exec cmd="php artisan db:seed --force"
+
+info: ## Shows PHP and Laravel version in container.
+	@make -s exec cmd="php artisan --version"
+	@make -s exec cmd="php artisan env"
+	@make -s exec cmd="php --version"
