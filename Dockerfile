@@ -10,6 +10,8 @@ ENV USERNAME=www-data
 ARG IS_DOCKER_CONTAINER=1
 ENV IS_DOCKER_CONTAINER=$IS_DOCKER_CONTAINER
 
+ARG NODE_VERSION=18
+
 # Install packages and dependencies.
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     build-essential \
@@ -49,6 +51,12 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     libmcrypt-dev \
     libpq-dev \
     libpcre3-dev
+
+# Install Node.js, npm and yarn.
+RUN curl -sLS https://deb.nodesource.com/setup_$NODE_VERSION.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g npm && \
+    npm install -g yarn
 
 # Clear cache and cleanup.
 RUN apt-get clean && \
