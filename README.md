@@ -1,4 +1,4 @@
-## Stack
+## Main stack
 - PHP `8.2.6`
 - XDebug `latest`
 - Composer `latest`
@@ -6,6 +6,11 @@
 - Nginx `1.25.0`
 - PostgreSQL `15.3`
 - Redis `7.0.11`
+
+## Requirements
+- Ubuntu-based distribution, recommends latest LTS version
+- Docker < `24`
+- Docker compose < `2.3`
 
 ## Run Development environment
 ```bash
