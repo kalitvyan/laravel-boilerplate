@@ -60,5 +60,9 @@ make logs-pgsql
 ## Redis
 - Customize the configuration you may in `docker/redis/redis.conf`
 
+## Packages
+- [Debugbar for Laravel](https://github.com/barryvdh/laravel-debugbar)
+- [IDE Helper for Laravel](https://github.com/barryvdh/laravel-ide-helper)
+
 ## License
 [The MIT License (MIT)](LICENSE)
