@@ -20,9 +20,39 @@ make start
 
 # Installs composer dependencies.
 make composer-install
+
+# Runs migrations.
+make migrate
+
+# Runs seeds.
+make seed
+
+# Available commands.
+make help
 ```
 
+### Frontend
+```bash
+# Open Laravel container.
+make shell
+
+# Install js packages and dependencies.
+yarn install
+
+# Build assets (it's works for prod too).
+yarn build
+
+# Runs dev mode.
+yarn dev
+```
 Welcome: http://localhost.
+
+### Backend
+Go to: http://localhost/admin/login
+```
+Login: admin@localhost
+Password: password
+```
 
 ## XDebug
 In order to enable Xdebug
@@ -61,6 +91,8 @@ make logs-pgsql
 - Customize the configuration you may in `docker/redis/redis.conf`
 
 ## Packages
+- [Livewire](https://github.com/livewire/livewire)
+- [Filament](https://github.com/filamentphp/filament)
 - [Debugbar for Laravel](https://github.com/barryvdh/laravel-debugbar)
 - [IDE Helper for Laravel](https://github.com/barryvdh/laravel-ide-helper)
 
