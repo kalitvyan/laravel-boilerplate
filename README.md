@@ -59,6 +59,15 @@ Login: admin@localhost
 Password: password
 ```
 
+### Api
+Boilerplate uses GraphQL for API implementation.
+
+GraphQL endpoint: http://localhost/graphql
+
+GraphQL Playground: http://localhost/graphiql
+
+Schema: `graphql/schema.graphql`
+
 ## XDebug
 In order to enable Xdebug
 #### PHPStorm:
@@ -98,6 +107,8 @@ make logs-pgsql
 ## Packages
 - [Livewire](https://github.com/livewire/livewire)
 - [Filament](https://github.com/filamentphp/filament)
+- [Lighthouse](https://github.com/nuwave/lighthouse)
+- [Laravel GraphiQL](https://github.com/mll-lab/laravel-graphiql)
 - [Debugbar for Laravel](https://github.com/barryvdh/laravel-debugbar)
 - [IDE Helper for Laravel](https://github.com/barryvdh/laravel-ide-helper)
 
