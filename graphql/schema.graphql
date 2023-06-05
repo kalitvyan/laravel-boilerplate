@@ -1,1 +1,25 @@
+type User {
+    id: ID!
+    name: String!
+    email: String!
+    created_at: String!
+    updated_at: String
 
+    articles: [Article!]! @hasMany
+}
+
+type Article {
+    id: ID!
+    title: String!
+    content: String!
+
+    author: User! @belongsTo(relation: "user")
+}
+
+type Query {
+    users: [User!]! @all
+    user(id: ID @eq): User @find
+
+    articles: [Article!]! @all
+    article(id: ID! @eq): Article @find
+}
