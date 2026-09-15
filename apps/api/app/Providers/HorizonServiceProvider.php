@@ -4,32 +4,21 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Horizon\HorizonApplicationServiceProvider;
 
-class HorizonServiceProvider extends HorizonApplicationServiceProvider
+final class HorizonServiceProvider extends HorizonApplicationServiceProvider
 {
     /**
-     * Bootstrap any application services.
-     */
-    public function boot(): void
-    {
-        parent::boot();
-
-        // Horizon::routeSmsNotificationsTo('15556667777');
-        // Horizon::routeMailNotificationsTo('example@example.com');
-        // Horizon::routeSlackNotificationsTo('slack-webhook-url', '#channel');
-    }
-
-    /**
-     * Register the Horizon gate.
-     *
-     * This gate determines who can access Horizon in non-local environments.
+     * Ops-UI, не бизнес-авторизация. В local Horizon пускает без Gate.
+     * В остальных окружениях доступ включается явно и дополнительно закрывается на уровне сети/ingress.
      */
     protected function gate(): void
     {
-        Gate::define('viewHorizon', fn ($user = null): bool => in_array(optional($user)->email, [
-            //
-        ]));
+        Gate::define(
+            'viewHorizon',
+            static fn (?Authenticatable $user = null): bool => config()->boolean('horizon.dashboard_enabled'),
+        );
     }
 }

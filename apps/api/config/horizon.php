@@ -253,4 +253,6 @@ return [
         'composer.json',
         '.env',
     ],
+
+    'dashboard_enabled' => (bool) env('HORIZON_DASHBOARD_ENABLED', false),
 ];

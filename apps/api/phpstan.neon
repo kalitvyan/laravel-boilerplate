@@ -9,7 +9,6 @@ parameters:
         - app
         - src
         - bootstrap/app.php
-        - config
         - database
         - routes
     tmpDir: storage/framework/cache/phpstan
