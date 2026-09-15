@@ -1,81 +1,115 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-PROJECT   := laravel-boilerplate
-API_DIR   := apps/api
-API_IMAGE := $(PROJECT)-api:dev
+COMPOSE := docker compose -f infra/docker/compose/compose.yaml
 
-UID := $(shell id -u)
-GID := $(shell id -g)
-TTY := $(shell [ -t 0 ] && echo -it)
+export HOST_UID := $(shell id -u)
+export HOST_GID := $(shell id -g)
 
-# Временный запуск через docker run; на этапе 2 заменим на docker compose exec
-DOCKER_API = docker run --rm $(TTY) \
-	-u $(UID):$(GID) \
-	-e COMPOSER_HOME=/tmp/composer \
-	-e HOME=/tmp \
-	-v $(CURDIR)/$(API_DIR):/app \
-	-w /app \
-	$(API_IMAGE)
+EXEC_TTY := $(shell [ -t 0 ] || echo -T)
+
+API_EXEC := $(COMPOSE) exec $(EXEC_TTY) api
+API_RUN  := $(COMPOSE) run --rm --no-deps $(EXEC_TTY) api
 
 .PHONY: help
 help: ## Show this help
-	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*## "} /^##@/ {printf "\n\033[1m%s\033[0m\n", substr($$0, 5)} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+##@ Environment
+
+.PHONY: init
+init: ## First run: env, build, deps, up, migrate
+	@test -f apps/api/.env || cp apps/api/.env.example apps/api/.env
+	$(COMPOSE) build
+	$(API_RUN) composer install
+	@grep -q '^APP_KEY=base64' apps/api/.env || $(API_RUN) php artisan key:generate
+	$(COMPOSE) up -d
+	$(API_EXEC) php artisan migrate --force
+
+.PHONY: up
+up: ## Start stack
+	$(COMPOSE) up -d
+
+.PHONY: down
+down: ## Stop stack
+	$(COMPOSE) down
+
+.PHONY: destroy
+destroy: ## Stop stack and REMOVE volumes
+	$(COMPOSE) down -v --remove-orphans
+
+.PHONY: build
+build: ## Rebuild images
+	$(COMPOSE) build
+
+.PHONY: ps
+ps: ## Service status
+	$(COMPOSE) ps
+
+.PHONY: logs
+logs: ## Logs: make logs s=api
+	$(COMPOSE) logs -f --tail=200 $(s)
 
 ##@ API
 
-.PHONY: api-image
-api-image: ## Build API dev image
-	docker build -f infra/docker/api/Dockerfile --target dev -t $(API_IMAGE) infra/docker/api
+.PHONY: shell
+shell: ## Shell in running api container
+	$(API_EXEC) bash
 
 .PHONY: composer
-composer: ## Run composer: make composer c="require vendor/pkg"
-	$(DOCKER_API) composer $(c)
+composer: ## Composer: make composer c="require vendor/pkg"
+	$(API_RUN) composer $(c)
 
 .PHONY: artisan
-artisan: ## Run artisan: make artisan c="route:list"
-	$(DOCKER_API) php artisan $(c)
+artisan: ## Artisan: make artisan c="route:list"
+	$(API_EXEC) php artisan $(c)
 
-.PHONY: api-shell
-api-shell: ## Shell in API container
-	$(DOCKER_API) bash
+.PHONY: migrate
+migrate: ## Run migrations
+	$(API_EXEC) php artisan migrate
 
-.PHONY: api-serve
-api-serve: ## Temporary: run Octane (FrankenPHP) on :8000
-	docker run --rm $(TTY) \
-		-u $(UID):$(GID) \
-		-e HOME=/tmp -e XDG_CONFIG_HOME=/tmp/config -e XDG_DATA_HOME=/tmp/data \
-		-p 8000:8000 \
-		-v $(CURDIR)/$(API_DIR):/app -w /app \
-		$(API_IMAGE) \
-		php artisan octane:frankenphp --host=0.0.0.0 --port=8000 --workers=2 --max-requests=500
+.PHONY: fresh
+fresh: ## Drop all tables and re-run migrations with seeders
+	$(API_EXEC) php artisan migrate:fresh --seed
+
+.PHONY: octane-reload
+octane-reload: ## Reload Octane workers
+	$(API_EXEC) php artisan octane:reload
+
+.PHONY: horizon-restart
+horizon-restart: ## Gracefully restart Horizon (after code changes)
+	$(API_EXEC) php artisan horizon:terminate
+
+.PHONY: psql
+psql: ## psql into app database
+	$(COMPOSE) exec postgres psql -U app -d app
 
 ##@ Quality
 
 .PHONY: lint
-lint: ## Check code style (Pint)
-	$(DOCKER_API) composer lint
+lint: ## Pint check
+	$(API_EXEC) composer lint
 
 .PHONY: fix
-fix: ## Auto-fix: Rector + Pint
-	$(DOCKER_API) composer fix
+fix: ## Rector + Pint
+	$(API_EXEC) composer fix
 
 .PHONY: rector
 rector: ## Rector dry-run
-	$(DOCKER_API) composer rector
+	$(API_EXEC) composer rector
 
 .PHONY: stan
-stan: ## PHPStan (Larastan, level max)
-	$(DOCKER_API) composer stan
+stan: ## PHPStan
+	$(API_EXEC) composer stan
 
 .PHONY: deptrac
-deptrac: ## Architecture rules: layers + contexts
-	$(DOCKER_API) composer deptrac
+deptrac: ## Architecture rules
+	$(API_EXEC) composer deptrac
 
 .PHONY: test
-test: ## Run tests: make test f="--filter=Health"
-	$(DOCKER_API) composer test -- $(f)
+test: ## Tests: make test f="--filter=Health"
+	$(API_EXEC) composer test -- $(f)
 
 .PHONY: qa
-qa: ## Run all checks
-	$(DOCKER_API) composer qa
+qa: ## All checks
+	$(API_EXEC) composer qa

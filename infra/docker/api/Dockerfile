@@ -21,5 +21,15 @@ RUN install-php-extensions \
     zip \
     @composer
 
-FROM base AS dev
-# xdebug, dev php.ini и entrypoint добавим на этапе 2
+    FROM base AS dev
+
+    RUN install-php-extensions xdebug
+
+    COPY php/dev.ini $PHP_INI_DIR/conf.d/zz-dev.ini
+
+    # Контейнер запускается под UID хоста: все записываемые пути в /tmp
+    ENV HOME=/tmp \
+        COMPOSER_HOME=/tmp/composer \
+        XDG_CONFIG_HOME=/tmp/config \
+        XDG_DATA_HOME=/tmp/data \
+        XDEBUG_MODE=off

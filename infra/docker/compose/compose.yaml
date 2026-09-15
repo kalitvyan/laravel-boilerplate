@@ -1,0 +1,155 @@
+name: laravel-boilerplate
+
+x-api: &api
+  image: laravel-boilerplate-api:dev
+  build:
+    context: ../api
+    target: dev
+  user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+  working_dir: /app
+  volumes:
+    - ../../../apps/api:/app
+  environment:
+    XDEBUG_MODE: ${XDEBUG_MODE:-off}
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis-state:
+      condition: service_healthy
+    redis-cache:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  api:
+    <<: *api
+    command: >
+      php artisan octane:frankenphp
+      --host=0.0.0.0 --port=8000
+      --workers=2
+      --watch
+    ports:
+      - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8000/health/live') === false ? 1 : 0);"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+  horizon:
+    <<: *api
+    command: php artisan horizon
+    stop_signal: SIGTERM
+    stop_grace_period: 60s
+
+  scheduler:
+    <<: *api
+    command: php artisan schedule:work
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ../postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # Очереди, Horizon, locks, rate limits: вытеснение запрещено, AOF включён
+  redis-state:
+    image: redis:8-alpine
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy noeviction
+      --appendonly yes
+      --appendfsync everysec
+    volumes:
+      - redis-state-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # Только кэш: LRU, без персистентности
+  redis-cache:
+    image: redis:8-alpine
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  rustfs:
+    image: rustfs/rustfs:latest # запинить на конкретный релиз
+    environment:
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_ACCESS_KEY: rustfsadmin
+      RUSTFS_SECRET_KEY: rustfsadmin
+    ports:
+      - "${RUSTFS_PORT:-9000}:9000"
+      - "${RUSTFS_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - rustfs-data:/data
+    restart: unless-stopped
+
+  rustfs-init:
+    image: amazon/aws-cli:latest
+    depends_on:
+      - rustfs
+    environment:
+      AWS_ACCESS_KEY_ID: rustfsadmin
+      AWS_SECRET_ACCESS_KEY: rustfsadmin
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        aws configure set default.s3.addressing_style path
+        until aws --endpoint-url http://rustfs:9000 s3api list-buckets >/dev/null 2>&1; do sleep 1; done
+        aws --endpoint-url http://rustfs:9000 s3api head-bucket --bucket app 2>/dev/null \
+          || aws --endpoint-url http://rustfs:9000 s3 mb s3://app
+    restart: "no"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    restart: unless-stopped
+
+  # OTel collector + Tempo + Loki + Prometheus + Grafana
+  otel-lgtm:
+    image: grafana/otel-lgtm:latest
+    ports:
+      - "${GRAFANA_PORT:-3030}:3000" # 3000 оставляем Next.js
+      - "4317:4317"
+      - "4318:4318"
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-state-data:
+  rustfs-data:
