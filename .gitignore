@@ -1,0 +1,18 @@
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Env
+.env
+.env.*
+!.env.example
+
+# JS
+node_modules/
+.pnpm-store/
+
+# Local infra data
+infra/docker/compose/.data/
