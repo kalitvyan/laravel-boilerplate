@@ -11,7 +11,9 @@
         "laravel/horizon": "^5.49",
         "laravel/octane": "^2.19",
         "laravel/sanctum": "^4.0",
-        "laravel/tinker": "^3.0"
+        "laravel/tinker": "^3.0",
+        "psr/clock": "^1.0",
+        "symfony/uid": "^8.1"
     },
     "require-dev": {
         "deptrac/deptrac": "^4.7",

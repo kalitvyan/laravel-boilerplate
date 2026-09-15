@@ -5,6 +5,10 @@ declare(strict_types=1);
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use LaravelBoilerplate\Shared\Presentation\Http\Middleware\AssignRequestId;
+use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemRenderer;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,9 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
         apiPrefix: 'api',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->prepend(AssignRequestId::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Временно: всегда JSON. На этапе 3 заменим на RFC 9457 renderer
-        $exceptions->shouldRenderJsonWhen(static fn (): bool => true);
-    })->create();
+        $exceptions->render(
+            static fn (Throwable $e, Request $request): ?JsonResponse => app(ProblemRenderer::class)->render($e, $request),
+        );
+    })
+    ->create();
