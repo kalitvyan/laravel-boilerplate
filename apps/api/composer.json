@@ -8,17 +8,26 @@
     "require": {
         "php": "^8.5",
         "laravel/framework": "^13.17",
+        "laravel/horizon": "^5.49",
+        "laravel/octane": "^2.19",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0"
     },
     "require-dev": {
+        "deptrac/deptrac": "^4.7",
+        "driftingly/rector-laravel": "^2.6",
         "fakerphp/faker": "^1.23",
+        "larastan/larastan": "^3.12",
         "laravel/pail": "^1.2.5",
         "laravel/pao": "^1.0.6",
-        "laravel/pint": "^1.27",
+        "laravel/pint": "^1.32",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
-        "phpunit/phpunit": "^12.5.12"
+        "pestphp/pest": "^5.2",
+        "pestphp/pest-plugin-laravel": "^5.0",
+        "phpstan/phpstan-deprecation-rules": "^2.0",
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "rector/rector": "^2.6"
     },
     "autoload": {
         "psr-4": {
@@ -34,6 +43,25 @@
         }
     },
     "scripts": {
+        "lint": "pint --test",
+        "rector": "rector process --dry-run --ansi",
+        "fix": [
+            "rector process --ansi",
+            "pint"
+        ],
+        "stan": "phpstan analyse --memory-limit=1G --ansi",
+        "deptrac": [
+            "deptrac analyse --config-file=deptrac.layers.yaml --no-progress --ansi",
+            "deptrac analyse --config-file=deptrac.contexts.yaml --no-progress --ansi"
+        ],
+        "test": "pest --colors=always",
+        "qa": [
+            "@lint",
+            "@rector",
+            "@stan",
+            "@deptrac",
+            "@test"
+        ],
         "setup": [
             "composer install",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
@@ -45,10 +73,6 @@
         "dev": [
             "Composer\\Config::disableProcessTimeout",
             "@php artisan dev"
-        ],
-        "test": [
-            "@php artisan config:clear --ansi @no_additional_args",
-            "@php artisan test"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

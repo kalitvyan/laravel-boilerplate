@@ -1,0 +1,84 @@
+deptrac:
+  paths:
+    - ./src
+  cache_file: .deptrac.layers.cache
+
+  layers:
+    - name: SharedDomain
+      collectors:
+        - { type: classLike, value: '^LaravelBoilerplate\\Shared\\Domain\\' }
+
+    - name: SharedApplication
+      collectors:
+        - { type: classLike, value: '^LaravelBoilerplate\\Shared\\Application\\' }
+
+    - name: SharedInfrastructure
+      collectors:
+        - type: bool
+          must:
+            - { type: classLike, value: '^LaravelBoilerplate\\Shared\\Infrastructure\\' }
+          must_not:
+            - { type: classLike, value: '\\Infrastructure\\Provider\\' }
+
+    - name: SharedPresentation
+      collectors:
+        - { type: classLike, value: '^LaravelBoilerplate\\Shared\\Presentation\\' }
+
+    - name: Domain
+      collectors:
+        - { type: classLike, value: '^LaravelBoilerplate\\(?!Shared\\)[^\\]+\\Domain\\' }
+
+    - name: Application
+      collectors:
+        - { type: classLike, value: '^LaravelBoilerplate\\(?!Shared\\)[^\\]+\\Application\\' }
+
+    - name: Infrastructure
+      collectors:
+        - type: bool
+          must:
+            - { type: classLike, value: '^LaravelBoilerplate\\(?!Shared\\)[^\\]+\\Infrastructure\\' }
+          must_not:
+            - { type: classLike, value: '\\Infrastructure\\Provider\\' }
+
+    - name: Presentation
+      collectors:
+        - { type: classLike, value: '^LaravelBoilerplate\\(?!Shared\\)[^\\]+\\Presentation\\' }
+
+    - name: Contract
+      collectors:
+        - { type: classLike, value: '^LaravelBoilerplate\\(?!Shared\\)[^\\]+\\Contract\\' }
+
+    # Composition root: провайдерам можно всё
+    - name: Provider
+      collectors:
+        - { type: classLike, value: '^LaravelBoilerplate\\[^\\]+\\Infrastructure\\Provider\\' }
+
+    - name: Framework
+      collectors:
+        - { type: classLike, value: '^Illuminate\\' }
+        - { type: classLike, value: '^Laravel\\' }
+        - { type: classLike, value: '^Carbon\\' }
+
+  ruleset:
+    SharedDomain: ~
+    SharedApplication: [SharedDomain]
+    SharedInfrastructure: [SharedDomain, SharedApplication, Framework]
+    SharedPresentation: [SharedDomain, SharedApplication, Framework]
+
+    Domain: [SharedDomain]
+    Contract: [SharedDomain]
+    Application: [Domain, Contract, SharedDomain, SharedApplication]
+    Infrastructure: [Domain, Application, Contract, SharedDomain, SharedApplication, SharedInfrastructure, Framework]
+    Presentation: [Domain, Application, Contract, SharedDomain, SharedApplication, SharedPresentation, Framework]
+
+    Provider:
+      - Domain
+      - Application
+      - Infrastructure
+      - Presentation
+      - Contract
+      - SharedDomain
+      - SharedApplication
+      - SharedInfrastructure
+      - SharedPresentation
+      - Framework
