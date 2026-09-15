@@ -13,6 +13,8 @@ x-api: &api
     XDEBUG_MODE: ${XDEBUG_MODE:-off}
   extra_hosts:
     - "host.docker.internal:host-gateway"
+  healthcheck:
+    disable: true
   depends_on:
     postgres:
       condition: service_healthy
@@ -44,6 +46,12 @@ services:
     command: php artisan horizon
     stop_signal: SIGTERM
     stop_grace_period: 60s
+    healthcheck:
+      test: ["CMD", "php", "artisan", "horizon:status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   scheduler:
     <<: *api
