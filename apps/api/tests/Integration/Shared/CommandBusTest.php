@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\DB;
 use LaravelBoilerplate\Shared\Application\Bus\CommandBus;
 use LaravelBoilerplate\Shared\Infrastructure\Bus\CommandHandlerMap;
+use LaravelBoilerplate\Shared\Infrastructure\Bus\ContainerCommandBus;
 use Tests\Fixtures\Shared\Bus\RecordTransactionLevel;
 use Tests\Fixtures\Shared\Bus\RecordTransactionLevelHandler;
 
@@ -31,10 +32,8 @@ it('rolls back and rethrows on failure', function (): void {
 });
 
 it('fails loudly when handler is missing', function (): void {
-    $this->app->forgetInstance(CommandHandlerMap::class);
-    $this->app->singleton(CommandHandlerMap::class, static fn (): CommandHandlerMap => new CommandHandlerMap);
-    $this->app->forgetScopedInstances();
+    $bus = new ContainerCommandBus($this->app, new CommandHandlerMap);
 
-    expect(fn () => $this->app->make(CommandBus::class)->dispatch(new RecordTransactionLevel))
+    expect(fn () => $bus->dispatch(new RecordTransactionLevel))
         ->toThrow(LogicException::class, 'No handler registered');
 });

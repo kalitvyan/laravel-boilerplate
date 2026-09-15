@@ -24,12 +24,11 @@ final readonly class ContainerCommandBus implements CommandBus
     public function dispatch(Command $command): void
     {
         $core = function (Command $command): void {
-            $handler = $this->container->make($this->handlers->handlerFor($command));
+            $handlerClass = $this->handlers->handlerFor($command);
+            $handler = $this->container->make($handlerClass);
 
             if (! is_callable($handler)) {
-                throw new LogicException(
-                    message: sprintf('Handler %s must be invokable', $handler::class)
-                );
+                throw new LogicException(sprintf('Handler %s must be invokable', $handlerClass));
             }
 
             $handler($command);

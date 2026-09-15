@@ -76,14 +76,19 @@ final readonly class ProblemRenderer
         $messages = $e->validator->errors();
 
         foreach ($e->validator->failed() as $field => $rules) {
-            $fieldMessages = $messages->get((string) $field);
-            $index = 0;
+            if (! is_array($rules)) {
+                continue;
+            }
 
-            foreach (array_keys($rules) as $rule) {
+            $fieldMessages = array_values($messages->get((string) $field));
+
+            foreach (array_keys($rules) as $index => $rule) {
+                $message = $fieldMessages[$index] ?? null;
+
                 $errors[] = [
-                    'pointer' => $this->jsonPointer((string) $field),
+                    'pointer' => self::jsonPointer((string) $field),
                     'code' => Str::snake(class_basename((string) $rule)),
-                    'message' => $fieldMessages[$index++] ?? $e->getMessage(),
+                    'message' => is_string($message) ? $message : $e->getMessage(),
                 ];
             }
         }
@@ -93,7 +98,7 @@ final readonly class ProblemRenderer
 
     /**
      * @param  array<string, mixed>  $extensions
-     * @param  array<string, mixed>  $headers
+     * @param  array<mixed>  $headers
      */
     private function respond(
         Request $request,

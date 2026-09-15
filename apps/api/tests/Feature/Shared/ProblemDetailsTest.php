@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Route;
 use LaravelBoilerplate\Shared\Application\Exception\NotFound;
 
@@ -67,4 +68,14 @@ it('rejects non-UUID request ids', function (): void {
     $response = $this->withHeader('X-Request-Id', "evil\nlog")->getJson('/health/live');
 
     expect($response->headers->get('X-Request-Id'))->not->toBe("evil\nlog");
+});
+
+it('does not report client errors but reports unexpected ones', function (): void {
+    Exceptions::fake();
+
+    $this->getJson('/_test/not-found')->assertNotFound();
+    $this->getJson('/_test/crash')->assertStatus(500);
+
+    Exceptions::assertNotReported(NotFound::class);
+    Exceptions::assertReported(RuntimeException::class);
 });

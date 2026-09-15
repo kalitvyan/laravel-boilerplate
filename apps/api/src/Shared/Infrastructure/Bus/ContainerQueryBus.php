@@ -18,12 +18,11 @@ final readonly class ContainerQueryBus implements QueryBus
 
     public function ask(Query $query): mixed
     {
-        $handler = $this->container->make($this->handlers->handlerFor($query));
+        $handlerClass = $this->handlers->handlerFor($query);
+        $handler = $this->container->make($handlerClass);
 
         if (! is_callable($handler)) {
-            throw new LogicException(
-                message: sprintf('Handler %s must be invokable', $handler::class)
-            );
+            throw new LogicException(sprintf('Handler %s must be invokable', $handlerClass));
         }
 
         return $handler($query);
