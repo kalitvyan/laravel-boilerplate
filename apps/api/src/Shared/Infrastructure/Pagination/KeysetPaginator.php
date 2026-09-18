@@ -40,8 +40,12 @@ final readonly class KeysetPaginator
 
         $query = clone $query;
 
-        if ($page->cursor instanceof Cursor) {
-            $query->whereRaw(...$this->keysetCondition($query, $columns, $keys, $direction, $page->cursor));
+        if ($page->cursor !== null) {
+            $query->whereRowValues(
+                $columns,
+                $direction === 'desc' ? '<' : '>',
+                $this->positionValues($keys, $page->cursor),
+            );
         }
 
         foreach ($orderBy as $column => $columnDirection) {
@@ -60,11 +64,11 @@ final readonly class KeysetPaginator
     }
 
     /**
-     * @param  list<string>  $columns
-     * @param  list<string>  $keys
-     * @return array{ExpressionContract, list<string|int|float>}
+     * @param list<string> $keys
+     *
+     * @return list<string|int|float>
      */
-    private function keysetCondition(Builder $query, array $columns, array $keys, string $direction, Cursor $cursor): array
+    private function positionValues(array $keys, Cursor $cursor): array
     {
         if (count($cursor->position) !== count($keys)) {
             throw InvalidCursor::mismatch();
@@ -80,16 +84,7 @@ final readonly class KeysetPaginator
             $values[] = $cursor->position[$key];
         }
 
-        $grammar = $query->getGrammar();
-
-        $sql = sprintf(
-            '(%s) %s (%s)',
-            implode(', ', array_map($grammar->wrap(...), $columns)),
-            $direction === 'desc' ? '<' : '>',
-            implode(', ', array_fill(0, count($columns), '?')),
-        );
-
-        return [new Expression($sql), $values];
+        return $values;
     }
 
     /**
