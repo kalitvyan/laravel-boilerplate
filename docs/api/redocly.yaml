@@ -9,3 +9,5 @@ rules:
   operation-operationId: error
   operation-operationId-unique: error
   operation-summary: error
+  # Локальный сервер указан намеренно; прод-URL появится вместе со стендом
+  no-server-example.com: off

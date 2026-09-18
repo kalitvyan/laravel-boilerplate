@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace LaravelBoilerplate\Shared\Infrastructure\Pagination;
 
+use Illuminate\Contracts\Database\Query\Expression as ExpressionContract;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Query\Expression;
 use LaravelBoilerplate\Shared\Application\Pagination\Cursor;
 use LaravelBoilerplate\Shared\Application\Pagination\CursorPage;
 use LaravelBoilerplate\Shared\Application\Pagination\InvalidCursor;
@@ -39,7 +41,6 @@ final readonly class KeysetPaginator
         $query = clone $query;
 
         if ($page->cursor instanceof Cursor) {
-            // TODO: fix it
             $query->whereRaw(...$this->keysetCondition($query, $columns, $keys, $direction, $page->cursor));
         }
 
@@ -61,7 +62,7 @@ final readonly class KeysetPaginator
     /**
      * @param  list<string>  $columns
      * @param  list<string>  $keys
-     * @return array{string, list<string|int|float>}
+     * @return array{ExpressionContract, list<string|int|float>}
      */
     private function keysetCondition(Builder $query, array $columns, array $keys, string $direction, Cursor $cursor): array
     {
@@ -88,7 +89,7 @@ final readonly class KeysetPaginator
             implode(', ', array_fill(0, count($columns), '?')),
         );
 
-        return [$sql, $values];
+        return [new Expression($sql), $values];
     }
 
     /**
@@ -115,7 +116,10 @@ final readonly class KeysetPaginator
             $position[$key] = $value;
         }
 
-        // TODO: fix it
+        if ($position === []) {
+            throw new LogicException('Keyset ordering must define at least one column');
+        }
+
         return Cursor::fromPosition($position);
     }
 

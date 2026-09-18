@@ -60,7 +60,9 @@
             "deptrac analyse --config-file=deptrac.contexts.yaml --no-progress --ansi"
         ],
         "test": "pest --colors=always",
+        "autoload-check": "@composer dump-autoload --strict-psr --quiet",
         "qa": [
+            "@autoload-check",
             "@lint",
             "@rector",
             "@stan",

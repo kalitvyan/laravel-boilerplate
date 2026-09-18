@@ -86,6 +86,10 @@ psql: ## psql into app database
 
 ##@ Quality
 
+.PHONY: autoload-check
+autoload-check: ## Verify PSR-4 compliance
+	$(API_EXEC) composer autoload-check
+
 .PHONY: lint
 lint: ## Pint check
 	$(API_EXEC) composer lint
