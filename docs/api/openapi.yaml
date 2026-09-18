@@ -1,0 +1,26 @@
+openapi: 3.0.3
+
+info:
+  title: Laravel Boilerplate API
+  version: 0.1.0
+  description: |
+    Spec-first API contract.
+    Errors follow RFC 9457 and are returned as `application/problem+json`.
+    Collections use cursor pagination: `{ items: [...], page: { nextCursor, limit } }`.
+  license:
+    name: MIT
+    url: https://github.com/kalitvyan/laravel-boilerplate/blob/main/LICENSE
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+
+tags:
+  - name: Ops
+    description: Health probes for orchestrators
+
+paths:
+  /health/live:
+    $ref: paths/shared/health-live.yaml
+  /health/ready:
+    $ref: paths/shared/health-ready.yaml

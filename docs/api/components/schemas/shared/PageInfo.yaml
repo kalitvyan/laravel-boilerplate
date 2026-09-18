@@ -1,0 +1,12 @@
+type: object
+required: [nextCursor, limit]
+additionalProperties: false
+properties:
+  nextCursor:
+    type: string
+    nullable: true
+    description: Opaque cursor for the next page. Null on the last page.
+  limit:
+    type: integer
+    minimum: 1
+    maximum: 100

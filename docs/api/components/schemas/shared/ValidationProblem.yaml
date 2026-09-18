@@ -1,0 +1,21 @@
+allOf:
+  - $ref: Problem.yaml
+  - type: object
+    required: [errors]
+    properties:
+      errors:
+        type: array
+        items:
+          type: object
+          required: [pointer, code, message]
+          additionalProperties: false
+          properties:
+            pointer:
+              type: string
+              description: JSON Pointer to the invalid field
+              example: /email
+            code:
+              type: string
+              example: email
+            message:
+              type: string

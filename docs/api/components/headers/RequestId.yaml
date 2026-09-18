@@ -1,0 +1,4 @@
+description: Correlation id. Echoes a valid incoming UUID or a generated one.
+schema:
+  type: string
+  format: uuid

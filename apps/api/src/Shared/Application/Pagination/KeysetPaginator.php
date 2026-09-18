@@ -39,6 +39,7 @@ final readonly class KeysetPaginator
         $query = clone $query;
 
         if ($page->cursor instanceof Cursor) {
+            // TODO: fix it
             $query->whereRaw(...$this->keysetCondition($query, $columns, $keys, $direction, $page->cursor));
         }
 
@@ -114,6 +115,7 @@ final readonly class KeysetPaginator
             $position[$key] = $value;
         }
 
+        // TODO: fix it
         return Cursor::fromPosition($position);
     }
 

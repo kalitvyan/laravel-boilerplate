@@ -1,0 +1,8 @@
+name: cursor
+in: query
+required: false
+description: Opaque cursor taken from `page.nextCursor`
+schema:
+  type: string
+  maxLength: 1024
+  pattern: '^[A-Za-z0-9_-]+$'

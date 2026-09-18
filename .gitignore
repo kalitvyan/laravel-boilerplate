@@ -16,3 +16,6 @@ node_modules/
 
 # Local infra data
 infra/docker/compose/.data/
+
+# Api
+docs/api/dist/

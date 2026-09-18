@@ -1,0 +1,5 @@
+description: Malformed request (invalid identifier, cursor or limit)
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/shared/Problem.yaml

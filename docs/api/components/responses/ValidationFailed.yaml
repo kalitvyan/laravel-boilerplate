@@ -1,0 +1,5 @@
+description: Request validation failed
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/shared/ValidationProblem.yaml

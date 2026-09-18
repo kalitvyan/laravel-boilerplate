@@ -1,0 +1,25 @@
+get:
+  operationId: getReadiness
+  summary: Readiness probe
+  description: Checks dependencies required to serve traffic.
+  tags: [Ops]
+  security: []
+  responses:
+    '200':
+      description: Ready to serve traffic
+      headers:
+        X-Request-Id:
+          $ref: ../../components/headers/RequestId.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/shared/Readiness.yaml
+    '503':
+      description: One or more dependencies are unavailable
+      headers:
+        X-Request-Id:
+          $ref: ../../components/headers/RequestId.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/shared/Readiness.yaml

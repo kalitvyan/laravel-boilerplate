@@ -107,9 +107,31 @@ deptrac: ## Architecture rules
 	$(API_EXEC) composer deptrac
 
 .PHONY: test
-test: ## Tests: make test f="--filter=Health"
+test: spec ## Tests: make test f="--filter=Health"
 	$(API_EXEC) composer test -- $(f)
 
 .PHONY: qa
-qa: ## All checks
+qa: spec ## All checks
 	$(API_EXEC) composer qa
+
+##@ API contract
+
+REDOCLY := docker run --rm \
+	-u $(HOST_UID):$(HOST_GID) \
+	-e HOME=/tmp \
+	-e REDOCLY_TELEMETRY=off \
+	-v $(CURDIR)/docs/api:/spec \
+	-w /spec \
+	redocly/cli:latest
+
+.PHONY: spec-lint
+spec-lint: ## Lint OpenAPI spec
+	$(REDOCLY) lint
+
+.PHONY: spec
+spec: spec-lint ## Lint and bundle spec into docs/api/dist/openapi.yaml
+	$(REDOCLY) bundle main --output dist/openapi.yaml
+
+.PHONY: spec-docs
+spec-docs: spec ## Build static HTML docs into docs/api/dist/index.html
+	$(REDOCLY) build-docs dist/openapi.yaml --output dist/index.html

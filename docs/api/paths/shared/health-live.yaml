@@ -1,0 +1,16 @@
+get:
+  operationId: getLiveness
+  summary: Liveness probe
+  description: Returns 200 while the process can serve requests. Does not check dependencies.
+  tags: [Ops]
+  security: []
+  responses:
+    '200':
+      description: Process is alive
+      headers:
+        X-Request-Id:
+          $ref: ../../components/headers/RequestId.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/shared/Liveness.yaml

@@ -1,0 +1,14 @@
+type: object
+required: [status, checks]
+additionalProperties: false
+properties:
+  status:
+    type: string
+    enum: [ok, fail]
+  checks:
+    type: object
+    additionalProperties:
+      type: string
+      enum: [ok, fail]
+    example:
+      database: ok

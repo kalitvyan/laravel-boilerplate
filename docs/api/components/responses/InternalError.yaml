@@ -1,0 +1,5 @@
+description: Unexpected server error
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/shared/Problem.yaml

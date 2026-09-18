@@ -1,0 +1,25 @@
+type: object
+description: RFC 9457 Problem Details
+required: [type, title, status, code]
+properties:
+  type:
+    type: string
+    description: URI reference identifying the problem type
+    example: about:blank
+  title:
+    type: string
+  status:
+    type: integer
+    minimum: 400
+    maximum: 599
+  detail:
+    type: string
+  instance:
+    type: string
+  code:
+    type: string
+    description: Stable machine-readable error code
+    pattern: '^[a-z0-9_]+(\.[a-z0-9_]+)*$'
+    example: pagination.invalid_cursor
+  traceId:
+    type: string

@@ -9,8 +9,10 @@ x-api: &api
   working_dir: /app
   volumes:
     - ../../../apps/api:/app
+    - ../../../docs/api:/spec:ro
   environment:
     XDEBUG_MODE: ${XDEBUG_MODE:-off}
+    OPENAPI_SPEC_PATH: /spec/dist/openapi.yaml
   extra_hosts:
     - "host.docker.internal:host-gateway"
   healthcheck:

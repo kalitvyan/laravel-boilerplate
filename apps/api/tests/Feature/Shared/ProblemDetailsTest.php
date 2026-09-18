@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Route;
 use LaravelBoilerplate\Shared\Application\Exception\NotFound;
 
 beforeEach(function (): void {
+    $this->withoutContractValidation();
+
     Route::get('/_test/not-found', static fn () => throw new class('Order was not found') extends NotFound {});
     Route::get('/_test/crash', static fn () => throw new RuntimeException('secret internals'));
     Route::post('/_test/validation', static fn (Request $request) => $request->validate([
