@@ -67,18 +67,26 @@ final class OpenApiContract
 
     private static function specPath(): string
     {
-        $path = getenv('OPENAPI_SPEC_PATH');
+        $fromEnv = getenv('OPENAPI_SPEC_PATH');
 
-        if (! is_string($path) || $path === '') {
-            // apps/api/tests/Support/Contract → корень репозитория
-            $path = dirname(__DIR__, 5).'/docs/api/dist/openapi.yaml';
+        $candidates = array_filter([
+            is_string($fromEnv) && $fromEnv !== '' ? $fromEnv : null,
+            // внутри контейнера docs/api смонтирован в /spec
+            '/spec/dist/openapi.yaml',
+            // запуск с хоста: apps/api/tests/Support/Contract → корень репозитория
+            dirname(__DIR__, 5).'/docs/api/dist/openapi.yaml',
+        ]);
+
+        foreach ($candidates as $path) {
+            if (is_file($path)) {
+                return $path;
+            }
         }
 
-        if (! is_file($path)) {
-            throw new RuntimeException(sprintf('OpenAPI bundle not found at %s. Run: make spec', $path));
-        }
-
-        return $path;
+        throw new RuntimeException(sprintf(
+            "OpenAPI bundle not found. Run: make spec\nLooked in:\n  - %s",
+            implode("\n  - ", $candidates),
+        ));
     }
 
     private static function describe(Throwable $e): string
