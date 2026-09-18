@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace LaravelBoilerplate\Shared\Infrastructure\Pagination;
 
-use Illuminate\Contracts\Database\Query\Expression as ExpressionContract;
 use Illuminate\Database\Query\Builder;
-use Illuminate\Database\Query\Expression;
 use LaravelBoilerplate\Shared\Application\Pagination\Cursor;
 use LaravelBoilerplate\Shared\Application\Pagination\CursorPage;
 use LaravelBoilerplate\Shared\Application\Pagination\InvalidCursor;
@@ -40,7 +38,7 @@ final readonly class KeysetPaginator
 
         $query = clone $query;
 
-        if ($page->cursor !== null) {
+        if ($page->cursor instanceof Cursor) {
             $query->whereRowValues(
                 $columns,
                 $direction === 'desc' ? '<' : '>',
@@ -64,8 +62,7 @@ final readonly class KeysetPaginator
     }
 
     /**
-     * @param list<string> $keys
-     *
+     * @param  list<string>  $keys
      * @return list<string|int|float>
      */
     private function positionValues(array $keys, Cursor $cursor): array
