@@ -8,6 +8,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use LaravelBoilerplate\Shared\Application\Exception\AccessDenied;
+use LaravelBoilerplate\Shared\Application\Exception\InvalidInput;
 use LaravelBoilerplate\Shared\Application\Exception\NotFound;
 use LaravelBoilerplate\Shared\Domain\Exception\DomainError;
 use LaravelBoilerplate\Shared\Presentation\Http\Middleware\AssignRequestId;
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
             DomainError::class,
             NotFound::class,
             AccessDenied::class,
+            InvalidInput::class,
         ]);
 
         $exceptions->render(

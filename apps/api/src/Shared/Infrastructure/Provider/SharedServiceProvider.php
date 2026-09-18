@@ -10,9 +10,12 @@ use LaravelBoilerplate\Shared\Application\Bus\CommandBus;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\TransactionalMiddleware;
 use LaravelBoilerplate\Shared\Application\Bus\QueryBus;
 use LaravelBoilerplate\Shared\Application\Exception\AccessDenied;
+use LaravelBoilerplate\Shared\Application\Exception\InvalidInput;
 use LaravelBoilerplate\Shared\Application\Exception\NotFound;
 use LaravelBoilerplate\Shared\Application\Health\HealthCheck;
 use LaravelBoilerplate\Shared\Application\Health\ReadinessProbe;
+use LaravelBoilerplate\Shared\Application\Pagination\InvalidCursor;
+use LaravelBoilerplate\Shared\Application\Pagination\InvalidPageLimit;
 use LaravelBoilerplate\Shared\Application\Transaction\TransactionManager;
 use LaravelBoilerplate\Shared\Domain\Exception\InvalidIdentifier;
 use LaravelBoilerplate\Shared\Infrastructure\Bus\CommandHandlerMap;
@@ -47,7 +50,10 @@ final class SharedServiceProvider extends ServiceProvider
         $this->app->singleton(ProblemMap::class, static fn (): ProblemMap => new ProblemMap()->with([
             NotFound::class => new ProblemDefinition(404, 'not_found', 'Resource not found'),
             AccessDenied::class => new ProblemDefinition(403, 'access_denied', 'Access denied'),
+            InvalidInput::class => new ProblemDefinition(400, 'invalid_input', 'Invalid input'),
             InvalidIdentifier::class => new ProblemDefinition(400, 'invalid_identifier', 'Invalid identifier'),
+            InvalidCursor::class => new ProblemDefinition(400, 'pagination.invalid_cursor', 'Invalid cursor'),
+            InvalidPageLimit::class => new ProblemDefinition(400, 'pagination.invalid_limit', 'Invalid page limit'),
         ]));
 
         // scoped: новый экземпляр на запрос или джоб в Octane
