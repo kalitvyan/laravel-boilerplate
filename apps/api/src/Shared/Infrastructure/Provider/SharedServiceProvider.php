@@ -7,8 +7,14 @@ namespace LaravelBoilerplate\Shared\Infrastructure\Provider;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
 use LaravelBoilerplate\Shared\Application\Bus\CommandBus;
+use LaravelBoilerplate\Shared\Application\Bus\Middleware\PublishRecordedEventsMiddleware;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\TransactionalMiddleware;
 use LaravelBoilerplate\Shared\Application\Bus\QueryBus;
+use LaravelBoilerplate\Shared\Application\Event\DomainEventDispatcher;
+use LaravelBoilerplate\Shared\Application\Event\EventCollector;
+use LaravelBoilerplate\Shared\Application\Event\IntegrationEventFactory;
+use LaravelBoilerplate\Shared\Application\Event\IntegrationEventPublisher;
+use LaravelBoilerplate\Shared\Application\Event\MessageMetadata;
 use LaravelBoilerplate\Shared\Application\Exception\AccessDenied;
 use LaravelBoilerplate\Shared\Application\Exception\InvalidInput;
 use LaravelBoilerplate\Shared\Application\Exception\NotFound;
@@ -23,7 +29,14 @@ use LaravelBoilerplate\Shared\Infrastructure\Bus\ContainerCommandBus;
 use LaravelBoilerplate\Shared\Infrastructure\Bus\ContainerQueryBus;
 use LaravelBoilerplate\Shared\Infrastructure\Bus\QueryHandlerMap;
 use LaravelBoilerplate\Shared\Infrastructure\Clock\SystemClock;
+use LaravelBoilerplate\Shared\Infrastructure\Event\ContextMessageMetadata;
+use LaravelBoilerplate\Shared\Infrastructure\Event\DomainEventListenerMap;
+use LaravelBoilerplate\Shared\Infrastructure\Event\DomainEventTranslatorMap;
+use LaravelBoilerplate\Shared\Infrastructure\Event\InMemoryEventCollector;
+use LaravelBoilerplate\Shared\Infrastructure\Event\MappedDomainEventDispatcher;
+use LaravelBoilerplate\Shared\Infrastructure\Event\MappedIntegrationEventFactory;
 use LaravelBoilerplate\Shared\Infrastructure\Health\DatabaseHealthCheck;
+use LaravelBoilerplate\Shared\Infrastructure\Outbox\OutboxPublisher;
 use LaravelBoilerplate\Shared\Infrastructure\Transaction\DatabaseTransactionManager;
 use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemDefinition;
 use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemMap;
@@ -62,6 +75,7 @@ final class SharedServiceProvider extends ServiceProvider
             $app->make(CommandHandlerMap::class),
             [
                 $app->make(TransactionalMiddleware::class),
+                $app->make(PublishRecordedEventsMiddleware::class),
             ],
         ));
 
@@ -76,6 +90,15 @@ final class SharedServiceProvider extends ServiceProvider
                 array_map(static fn (string $class): HealthCheck => $app->make($class), self::READINESS_CHECKS),
             ),
         );
+
+        $this->app->scoped(EventCollector::class, InMemoryEventCollector::class);
+        $this->app->bind(MessageMetadata::class, ContextMessageMetadata::class);
+        $this->app->bind(IntegrationEventPublisher::class, OutboxPublisher::class);
+        $this->app->bind(DomainEventDispatcher::class, MappedDomainEventDispatcher::class);
+        $this->app->bind(IntegrationEventFactory::class, MappedIntegrationEventFactory::class);
+
+        $this->app->singleton(DomainEventListenerMap::class, static fn (): DomainEventListenerMap => new DomainEventListenerMap);
+        $this->app->singleton(DomainEventTranslatorMap::class, static fn (): DomainEventTranslatorMap => new DomainEventTranslatorMap);
     }
 
     public function boot(): void

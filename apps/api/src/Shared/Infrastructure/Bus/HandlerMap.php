@@ -51,4 +51,12 @@ abstract readonly class HandlerMap
     {
         return $this->handlers;
     }
+
+    /**
+     * @return class-string|null
+     */
+    public function find(object $message): ?string
+    {
+        return $this->handlers[$message::class] ?? null;
+    }
 }

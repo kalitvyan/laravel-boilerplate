@@ -6,6 +6,7 @@ namespace LaravelBoilerplate\Shared\Presentation\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Context;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Uid\Uuid;
 
@@ -28,6 +29,8 @@ final readonly class AssignRequestId
         $requestId = $incoming !== null && Uuid::isValid($incoming) ? $incoming : Uuid::v7()->toRfc4122();
 
         $request->attributes->set(self::ATTRIBUTE, $requestId);
+
+        Context::add('trace_id', $requestId);
 
         $response = $next($request);
         $response->headers->set(self::HEADER, $requestId);

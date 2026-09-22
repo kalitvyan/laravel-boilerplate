@@ -17,8 +17,8 @@ final class HorizonServiceProvider extends HorizonApplicationServiceProvider
     protected function gate(): void
     {
         Gate::define(
-            'viewHorizon',
-            static fn (?Authenticatable $user = null): bool => config()->boolean('horizon.dashboard_enabled'),
+            ability: 'viewHorizon',
+            callback: static fn (?Authenticatable $user = null): bool => config()->boolean('horizon.dashboard_enabled'),
         );
     }
 }

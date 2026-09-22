@@ -18,17 +18,21 @@ beforeEach(function (): void {
 });
 
 it('runs handler inside a transaction', function (): void {
+    $before = DB::transactionLevel();
+
     $this->app->make(CommandBus::class)->dispatch(new RecordTransactionLevel);
 
-    expect(RecordTransactionLevelHandler::$level)->toBe(1)
-        ->and(DB::transactionLevel())->toBe(0);
+    expect(RecordTransactionLevelHandler::$level)->toBe($before + 1)
+        ->and(DB::transactionLevel())->toBe($before);
 });
 
 it('rolls back and rethrows on failure', function (): void {
+    $before = DB::transactionLevel();
+
     expect(fn () => $this->app->make(CommandBus::class)->dispatch(new RecordTransactionLevel(fail: true)))
         ->toThrow(RuntimeException::class, 'boom');
 
-    expect(DB::transactionLevel())->toBe(0);
+    expect(DB::transactionLevel())->toBe($before);
 });
 
 it('fails loudly when handler is missing', function (): void {

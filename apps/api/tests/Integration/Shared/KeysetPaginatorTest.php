@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use LaravelBoilerplate\Shared\Application\Pagination\Cursor;
@@ -11,8 +10,6 @@ use LaravelBoilerplate\Shared\Application\Pagination\InvalidCursor;
 use LaravelBoilerplate\Shared\Application\Pagination\PageRequest;
 use LaravelBoilerplate\Shared\Infrastructure\Pagination\KeysetPaginator;
 use Symfony\Component\Uid\Uuid;
-
-uses(DatabaseTransactions::class);
 
 beforeEach(function (): void {
     // DDL в Postgres транзакционен: таблица откатится вместе с тестом
