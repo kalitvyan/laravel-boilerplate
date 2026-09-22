@@ -4,7 +4,14 @@ declare(strict_types=1);
 
 namespace LaravelBoilerplate\Shared\Infrastructure\Provider;
 
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\Redis\Factory as RedisFactory;
+use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Filesystem\FilesystemManager;
+use Illuminate\Http\Middleware\TrustProxies;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use LaravelBoilerplate\Shared\Application\Bus\CommandBus;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\PublishRecordedEventsMiddleware;
@@ -18,10 +25,11 @@ use LaravelBoilerplate\Shared\Application\Event\MessageMetadata;
 use LaravelBoilerplate\Shared\Application\Exception\AccessDenied;
 use LaravelBoilerplate\Shared\Application\Exception\InvalidInput;
 use LaravelBoilerplate\Shared\Application\Exception\NotFound;
-use LaravelBoilerplate\Shared\Application\Health\HealthCheck;
 use LaravelBoilerplate\Shared\Application\Health\ReadinessProbe;
 use LaravelBoilerplate\Shared\Application\Pagination\InvalidCursor;
 use LaravelBoilerplate\Shared\Application\Pagination\InvalidPageLimit;
+use LaravelBoilerplate\Shared\Application\Storage\FileStorage;
+use LaravelBoilerplate\Shared\Application\Storage\InvalidStoragePath;
 use LaravelBoilerplate\Shared\Application\Transaction\TransactionManager;
 use LaravelBoilerplate\Shared\Domain\Exception\InvalidIdentifier;
 use LaravelBoilerplate\Shared\Infrastructure\Bus\CommandHandlerMap;
@@ -37,23 +45,20 @@ use LaravelBoilerplate\Shared\Infrastructure\Event\IntegrationEventSubscriberMap
 use LaravelBoilerplate\Shared\Infrastructure\Event\MappedDomainEventDispatcher;
 use LaravelBoilerplate\Shared\Infrastructure\Event\MappedIntegrationEventFactory;
 use LaravelBoilerplate\Shared\Infrastructure\Health\DatabaseHealthCheck;
+use LaravelBoilerplate\Shared\Infrastructure\Health\RedisHealthCheck;
 use LaravelBoilerplate\Shared\Infrastructure\Outbox\Console\PruneOutboxCommand;
 use LaravelBoilerplate\Shared\Infrastructure\Outbox\Console\RelayOutboxCommand;
 use LaravelBoilerplate\Shared\Infrastructure\Outbox\OutboxPublisher;
+use LaravelBoilerplate\Shared\Infrastructure\Storage\LaravelFileStorage;
 use LaravelBoilerplate\Shared\Infrastructure\Transaction\DatabaseTransactionManager;
 use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemDefinition;
 use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemMap;
+use LogicException;
 use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
 
 final class SharedServiceProvider extends ServiceProvider
 {
-    /**
-     * @var list<class-string<HealthCheck>>
-     */
-    private const array READINESS_CHECKS = [
-        DatabaseHealthCheck::class,
-    ];
-
     public function register(): void
     {
         $this->app->bind(ClockInterface::class, SystemClock::class);
@@ -70,6 +75,7 @@ final class SharedServiceProvider extends ServiceProvider
             InvalidIdentifier::class => new ProblemDefinition(400, 'invalid_identifier', 'Invalid identifier'),
             InvalidCursor::class => new ProblemDefinition(400, 'pagination.invalid_cursor', 'Invalid cursor'),
             InvalidPageLimit::class => new ProblemDefinition(400, 'pagination.invalid_limit', 'Invalid page limit'),
+            InvalidStoragePath::class => new ProblemDefinition(400, 'storage.invalid_path', 'Invalid storage path'),
         ]));
 
         // scoped: новый экземпляр на запрос или джоб в Octane
@@ -87,12 +93,11 @@ final class SharedServiceProvider extends ServiceProvider
             $app->make(QueryHandlerMap::class),
         ));
 
-        $this->app->bind(
-            ReadinessProbe::class,
-            static fn (Application $app): ReadinessProbe => new ReadinessProbe(
-                array_map(static fn (string $class): HealthCheck => $app->make($class), self::READINESS_CHECKS),
-            ),
-        );
+        $this->app->bind(ReadinessProbe::class, static fn (Application $app): ReadinessProbe => new ReadinessProbe([
+            $app->make(DatabaseHealthCheck::class),
+            new RedisHealthCheck($app->make(RedisFactory::class), $app->make(LoggerInterface::class), 'default', 'redis_state'),
+            new RedisHealthCheck($app->make(RedisFactory::class), $app->make(LoggerInterface::class), 'cache', 'redis_cache'),
+        ]));
 
         $this->app->scoped(EventCollector::class, InMemoryEventCollector::class);
         $this->app->bind(MessageMetadata::class, ContextMessageMetadata::class);
@@ -107,11 +112,27 @@ final class SharedServiceProvider extends ServiceProvider
             IntegrationEventSubscriberMap::class,
             static fn (): IntegrationEventSubscriberMap => new IntegrationEventSubscriberMap,
         );
+
+        $this->app->bind(static function (Application $app): FileStorage {
+            $filesystems = $app->make(FilesystemManager::class);
+
+            $disk = $filesystems->disk(config()->string('filesystems.default'));
+            $presignDisk = $filesystems->disk(config()->string('filesystems.presign_disk'));
+
+            if (! $disk instanceof FilesystemAdapter || ! $presignDisk instanceof FilesystemAdapter) {
+                throw new LogicException('File storage requires Flysystem-backed disks');
+            }
+
+            return new LaravelFileStorage($disk, $presignDisk, $app->make(ClockInterface::class));
+        });
     }
 
     public function boot(): void
     {
         $this->loadRoutesFrom(__DIR__.'/../../Presentation/Http/routes.php');
+
+        $this->configureTrustedProxies();
+        $this->configureRateLimiting();
 
         if ($this->app->runningInConsole()) {
             $this->commands([
@@ -119,5 +140,29 @@ final class SharedServiceProvider extends ServiceProvider
                 PruneOutboxCommand::class,
             ]);
         }
+    }
+
+    private function configureTrustedProxies(): void
+    {
+        $proxies = array_values(array_filter(
+            array_map(trim(...), explode(',', config()->string('api.trusted_proxies'))),
+            static fn (string $proxy): bool => $proxy !== '',
+        ));
+
+        TrustProxies::at($proxies);
+        TrustProxies::withHeaders(
+            Request::HEADER_X_FORWARDED_FOR
+            | Request::HEADER_X_FORWARDED_HOST
+            | Request::HEADER_X_FORWARDED_PORT
+            | Request::HEADER_X_FORWARDED_PROTO,
+        );
+    }
+
+    private function configureRateLimiting(): void
+    {
+        // На этапе 6 ключом для аутентифицированных запросов станет principal id
+        RateLimiter::for('api', static fn (Request $request): Limit => Limit::perMinute(
+            config()->integer('api.rate_limit.per_minute'),
+        )->by('ip:'.$request->ip()));
     }
 }

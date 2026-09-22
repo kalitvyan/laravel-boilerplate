@@ -107,7 +107,16 @@ return [
             ],
         ],
 
+        // Персистентный Redis (noeviction): локи и счётчики rate limiter не должны вытесняться
+        'state' => [
+            'driver' => 'redis',
+            'connection' => 'default',
+            'lock_connection' => 'default',
+        ],
+
     ],
+
+    'limiter' => env('CACHE_LIMITER', 'state'),
 
     /*
     |--------------------------------------------------------------------------

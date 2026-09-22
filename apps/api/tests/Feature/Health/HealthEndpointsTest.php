@@ -13,5 +13,7 @@ it('reports readiness with database check', function (): void {
     $this->getJson('/health/ready')
         ->assertOk()
         ->assertJsonPath('status', 'ok')
-        ->assertJsonPath('checks.database', 'ok');
+        ->assertJsonPath('checks.database', 'ok')
+        ->assertJsonPath('checks.redis_state', 'ok')
+        ->assertJsonPath('checks.redis_cache', 'ok');
 });

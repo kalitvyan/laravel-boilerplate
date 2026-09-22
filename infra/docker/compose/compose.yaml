@@ -127,8 +127,8 @@ services:
       RUSTFS_ACCESS_KEY: rustfsadmin
       RUSTFS_SECRET_KEY: rustfsadmin
     ports:
-      - "${RUSTFS_PORT:-9000}:9000"
-      - "${RUSTFS_CONSOLE_PORT:-9001}:9001"
+      - "${RUSTFS_PORT:-9010}:9000"
+      - "${RUSTFS_CONSOLE_PORT:-9011}:9001"
     volumes:
       - rustfs-data:/data
     restart: unless-stopped
@@ -146,8 +146,10 @@ services:
       - |
         aws configure set default.s3.addressing_style path
         until aws --endpoint-url http://rustfs:9000 s3api list-buckets >/dev/null 2>&1; do sleep 1; done
-        aws --endpoint-url http://rustfs:9000 s3api head-bucket --bucket app 2>/dev/null \
-          || aws --endpoint-url http://rustfs:9000 s3 mb s3://app
+        for bucket in app app-test; do
+          aws --endpoint-url http://rustfs:9000 s3api head-bucket --bucket "$$bucket" 2>/dev/null \
+            || aws --endpoint-url http://rustfs:9000 s3 mb "s3://$$bucket"
+        done
     restart: "no"
 
   mailpit:

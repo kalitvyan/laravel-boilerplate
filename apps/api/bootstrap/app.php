@@ -22,6 +22,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(AssignRequestId::class);
+
+        // Троттлинг группы api через Redis (redis-state) атомарными Lua-скриптами
+        $middleware->throttleApi(redis: true);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Нарушения бизнес-правил и клиентские ошибки — не инциденты
