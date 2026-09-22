@@ -88,4 +88,4 @@ See [SECURITY.md](SECURITY.md).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://opensource.org/licenses/MIT)

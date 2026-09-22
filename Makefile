@@ -80,6 +80,10 @@ octane-reload: ## Reload Octane workers
 horizon-restart: ## Gracefully restart Horizon (after code changes)
 	$(API_EXEC) php artisan horizon:terminate
 
+.PHONY: relay-restart
+relay-restart: ## Restart outbox relay (after code changes)
+	$(COMPOSE) restart outbox-relay
+
 .PHONY: psql
 psql: ## psql into app database
 	$(COMPOSE) exec postgres psql -U app -d app

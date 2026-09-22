@@ -42,7 +42,7 @@ return new class extends Migration
 
         // Statement-level trigger: одно уведомление на INSERT, доставляется при коммите
         DB::statement(<<<'SQL'
-            CREATE FUNCTION outbox_messages_notify() RETURNS trigger
+            CREATE OR REPLACE FUNCTION outbox_messages_notify() RETURNS trigger
             LANGUAGE plpgsql AS $$
             BEGIN
                 PERFORM pg_notify('outbox_new', '');

@@ -59,6 +59,12 @@ services:
     <<: *api
     command: php artisan schedule:work
 
+  outbox-relay:
+    <<: *api
+    command: php artisan outbox:relay
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
+
   postgres:
     image: postgres:18-alpine
     environment:

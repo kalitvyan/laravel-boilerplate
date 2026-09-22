@@ -33,9 +33,12 @@ use LaravelBoilerplate\Shared\Infrastructure\Event\ContextMessageMetadata;
 use LaravelBoilerplate\Shared\Infrastructure\Event\DomainEventListenerMap;
 use LaravelBoilerplate\Shared\Infrastructure\Event\DomainEventTranslatorMap;
 use LaravelBoilerplate\Shared\Infrastructure\Event\InMemoryEventCollector;
+use LaravelBoilerplate\Shared\Infrastructure\Event\IntegrationEventSubscriberMap;
 use LaravelBoilerplate\Shared\Infrastructure\Event\MappedDomainEventDispatcher;
 use LaravelBoilerplate\Shared\Infrastructure\Event\MappedIntegrationEventFactory;
 use LaravelBoilerplate\Shared\Infrastructure\Health\DatabaseHealthCheck;
+use LaravelBoilerplate\Shared\Infrastructure\Outbox\Console\PruneOutboxCommand;
+use LaravelBoilerplate\Shared\Infrastructure\Outbox\Console\RelayOutboxCommand;
 use LaravelBoilerplate\Shared\Infrastructure\Outbox\OutboxPublisher;
 use LaravelBoilerplate\Shared\Infrastructure\Transaction\DatabaseTransactionManager;
 use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemDefinition;
@@ -99,10 +102,22 @@ final class SharedServiceProvider extends ServiceProvider
 
         $this->app->singleton(DomainEventListenerMap::class, static fn (): DomainEventListenerMap => new DomainEventListenerMap);
         $this->app->singleton(DomainEventTranslatorMap::class, static fn (): DomainEventTranslatorMap => new DomainEventTranslatorMap);
+
+        $this->app->singleton(
+            IntegrationEventSubscriberMap::class,
+            static fn (): IntegrationEventSubscriberMap => new IntegrationEventSubscriberMap,
+        );
     }
 
     public function boot(): void
     {
         $this->loadRoutesFrom(__DIR__.'/../../Presentation/Http/routes.php');
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                RelayOutboxCommand::class,
+                PruneOutboxCommand::class,
+            ]);
+        }
     }
 }

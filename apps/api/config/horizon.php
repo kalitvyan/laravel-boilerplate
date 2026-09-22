@@ -212,6 +212,19 @@ return [
             'timeout' => 60,
             'nice' => 0,
         ],
+
+        'supervisor-integration' => [
+            'connection' => 'redis',
+            'queue' => ['integration'],
+            'balance' => 'simple',
+            'maxProcesses' => 3,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1, // джоб задаёт свои $tries, они приоритетнее
+            'timeout' => 60,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
@@ -221,10 +234,18 @@ return [
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
+
+            'supervisor-integration' => [
+                'maxProcesses' => 3,
+            ],
         ],
 
         'local' => [
             'supervisor-1' => [
+                'maxProcesses' => 3,
+            ],
+
+            'supervisor-integration' => [
                 'maxProcesses' => 3,
             ],
         ],
