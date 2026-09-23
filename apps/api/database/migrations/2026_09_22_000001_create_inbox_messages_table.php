@@ -14,7 +14,7 @@ return new class extends Migration
             $table->uuid('message_id');
             // Идемпотентность на уровне пары: одно сообщение обрабатывается каждым хендлером независимо
             $table->string('handler', 255);
-            $table->timestampTz('processed_at');
+            $table->timestampTz('processed_at', 6);
 
             $table->primary(['message_id', 'handler']);
             $table->index('processed_at');

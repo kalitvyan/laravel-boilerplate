@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Models\User;
+use LaravelBoilerplate\Identity\Infrastructure\Persistence\Eloquent\UserModel;
 
 return [
 
@@ -66,7 +66,7 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', User::class),
+            'model' => UserModel::class,
         ],
 
         // 'users' => [

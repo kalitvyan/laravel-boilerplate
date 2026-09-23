@@ -13,11 +13,11 @@ deptrac:
         - { type: classLike, value: '^LaravelBoilerplate\\(?!Shared\\)[^\\]+\\Contract\\' }
 
     # Каждый новый контекст добавляется сюда:
-    # - name: Identity
-    #   collectors:
-    #     - { type: classLike, value: '^LaravelBoilerplate\\Identity\\' }
+    - name: Identity
+      collectors:
+        - { type: classLike, value: '^LaravelBoilerplate\\Identity\\' }
 
   ruleset:
     Shared: ~
     Contracts: [Shared]
-    # Identity: [Shared, Contracts]
+    Identity: [Shared, Contracts]

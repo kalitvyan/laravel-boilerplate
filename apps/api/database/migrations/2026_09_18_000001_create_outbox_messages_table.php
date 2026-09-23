@@ -25,9 +25,9 @@ return new class extends Migration
             $table->jsonb('payload');
             $table->jsonb('metadata');
 
-            $table->timestampTz('occurred_at');
-            $table->timestampTz('created_at');
-            $table->timestampTz('published_at')->nullable();
+            $table->timestampTz('occurred_at', 6);
+            $table->timestampTz('created_at', 6);
+            $table->timestampTz('published_at', 6)->nullable();
 
             $table->unsignedInteger('attempts')->default(0);
             $table->text('last_error')->nullable();
