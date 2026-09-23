@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace LaravelBoilerplate\Identity\Infrastructure\ReadModel;
 
-use DateTimeImmutable;
 use Illuminate\Database\ConnectionResolverInterface;
 use LaravelBoilerplate\Identity\Application\ReadModel\UserReadModel;
 use LaravelBoilerplate\Identity\Application\ReadModel\UserView;
 use LaravelBoilerplate\Identity\Infrastructure\Persistence\UsersTable;
-use LogicException;
+use LaravelBoilerplate\Shared\Infrastructure\Persistence\Row;
 use stdClass;
 
 final readonly class DatabaseUserReadModel implements UserReadModel
@@ -24,20 +23,17 @@ final readonly class DatabaseUserReadModel implements UserReadModel
             ->where('id', $userId)
             ->first();
 
-        return $row instanceof stdClass ? $this->map($row) : null;
-    }
-
-    private function map(stdClass $row): UserView
-    {
-        $id = $row->id ?? null;
-        $email = $row->email ?? null;
-        $status = $row->status ?? null;
-        $registeredAt = $row->registered_at ?? null;
-
-        if (! is_string($id) || ! is_string($email) || ! is_string($status) || ! is_string($registeredAt)) {
-            throw new LogicException('Unexpected users row shape');
+        if (! $row instanceof stdClass) {
+            return null;
         }
 
-        return new UserView($id, $email, $status, new DateTimeImmutable($registeredAt));
+        $data = Row::from($row, UsersTable::NAME);
+
+        return new UserView(
+            $data->string('id'),
+            $data->string('email'),
+            $data->string('status'),
+            $data->timestamp('registered_at'),
+        );
     }
 }

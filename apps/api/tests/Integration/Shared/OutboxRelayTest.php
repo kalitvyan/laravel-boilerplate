@@ -92,7 +92,7 @@ it('moves malformed messages to dead letter without blocking others', function (
 
     expect($row->published_at)->toBeNull()
         ->and($row->attempts)->toBe(OutboxRelay::DEAD_LETTER_ATTEMPTS)
-        ->and($row->last_error)->toContain('Malformed')
+        ->and($row->last_error)->toContain('outbox_messages.payload')
         ->and(DB::table('outbox_messages')->where('id', $healthy)->value('published_at'))->not->toBeNull()
         ->and($relay->relayBatch(100))->toBe(0);
 });

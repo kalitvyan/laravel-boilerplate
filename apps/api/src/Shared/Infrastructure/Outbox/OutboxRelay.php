@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace LaravelBoilerplate\Shared\Infrastructure\Outbox;
 
 use DateMalformedStringException;
-use DateTimeImmutable;
 use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\ConnectionResolverInterface;
@@ -13,6 +12,8 @@ use InvalidArgumentException;
 use LaravelBoilerplate\Shared\Application\Event\IntegrationEventEnvelope;
 use LaravelBoilerplate\Shared\Application\Transaction\TransactionManager;
 use LaravelBoilerplate\Shared\Infrastructure\Event\IntegrationEventSubscriberMap;
+use LaravelBoilerplate\Shared\Infrastructure\Persistence\Row;
+use LaravelBoilerplate\Shared\Infrastructure\Persistence\Timestamp;
 use LogicException;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -68,7 +69,7 @@ final readonly class OutboxRelay
 
                 try {
                     $envelope = $this->envelopeFrom($row);
-                } catch (InvalidArgumentException|DateMalformedStringException $e) {
+                } catch (InvalidArgumentException|DateMalformedStringException|LogicException $e) {
                     $this->deadLetter($connection, $sequence, $e);
 
                     continue;
@@ -85,7 +86,7 @@ final readonly class OutboxRelay
             if ($published !== []) {
                 $connection->table(OutboxTable::NAME)
                     ->whereIn('sequence', $published)
-                    ->update(['published_at' => $this->clock->now()->format('Y-m-d H:i:s.uP')]);
+                    ->update(['published_at' => $this->clock->now()->format(Timestamp::FORMAT)]);
             }
 
             return count($rows);
@@ -94,21 +95,17 @@ final readonly class OutboxRelay
 
     private function envelopeFrom(stdClass $row): IntegrationEventEnvelope
     {
-        $payload = $row->payload ?? null;
-        $metadata = $row->metadata ?? null;
-        $occurredAt = $row->occurred_at ?? null;
+        $data = Row::from($row, OutboxTable::NAME);
 
         return IntegrationEventEnvelope::fromArray([
-            'messageId' => $row->id ?? null,
-            'eventName' => $row->event_name ?? null,
-            'eventVersion' => $row->event_version ?? null,
-            'aggregateType' => $row->aggregate_type ?? null,
-            'aggregateId' => $row->aggregate_id ?? null,
-            'payload' => is_string($payload) ? json_decode($payload, true) : null,
-            'metadata' => is_string($metadata) ? json_decode($metadata, true) : null,
-            'occurredAt' => is_string($occurredAt)
-                ? new DateTimeImmutable($occurredAt)->format(IntegrationEventEnvelope::DATE_FORMAT)
-                : null,
+            'messageId' => $data->string('id'),
+            'eventName' => $data->string('event_name'),
+            'eventVersion' => $data->int('event_version'),
+            'aggregateType' => $data->nullableString('aggregate_type'),
+            'aggregateId' => $data->nullableString('aggregate_id'),
+            'payload' => $data->jsonObject('payload'),
+            'metadata' => $data->jsonObject('metadata'),
+            'occurredAt' => $data->timestamp('occurred_at')->format(IntegrationEventEnvelope::DATE_FORMAT),
         ]);
     }
 

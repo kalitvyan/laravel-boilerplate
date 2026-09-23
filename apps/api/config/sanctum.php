@@ -5,7 +5,6 @@ declare(strict_types=1);
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Laravel\Sanctum\Http\Middleware\AuthenticateSession;
-use Laravel\Sanctum\Sanctum;
 
 return [
 
@@ -20,12 +19,8 @@ return [
     |
     */
 
-    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
-        '%s%s',
-        'localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1',
-        Sanctum::currentApplicationUrlWithPort(),
-        // Sanctum::currentRequestHost(),
-    ))),
+    // API stateless: BFF ходит с Bearer-токеном, cookie-режим Sanctum не используется
+    'stateful' => [],
 
     /*
     |--------------------------------------------------------------------------
@@ -52,6 +47,7 @@ return [
     |
     */
 
+    // Срок задаётся на каждый токен при выпуске
     'expiration' => null,
 
     /*

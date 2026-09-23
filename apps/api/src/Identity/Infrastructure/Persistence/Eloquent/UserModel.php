@@ -9,7 +9,8 @@ use Illuminate\Database\Eloquent\Attributes\DateFormat;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Attributes\WithoutIncrementing;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Laravel\Sanctum\HasApiTokens;
 use LaravelBoilerplate\Identity\Infrastructure\Persistence\UsersTable;
 use Override;
 
@@ -26,8 +27,10 @@ use Override;
 #[Unguarded]
 #[Hidden(['password_hash'])]
 #[WithoutIncrementing]
-final class UserModel extends Model
+final class UserModel extends Authenticatable
 {
+    use HasApiTokens;
+
     #[Override]
     protected $table = UsersTable::NAME;
 

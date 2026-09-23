@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use LaravelBoilerplate\Shared\Application\Exception\AccessDenied;
 use LaravelBoilerplate\Shared\Application\Exception\InvalidInput;
 use LaravelBoilerplate\Shared\Application\Exception\NotFound;
+use LaravelBoilerplate\Shared\Application\Exception\Unauthenticated;
 use LaravelBoilerplate\Shared\Domain\Exception\DomainError;
 use LaravelBoilerplate\Shared\Presentation\Http\Middleware\AssignRequestId;
 use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemRenderer;
@@ -33,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
             NotFound::class,
             AccessDenied::class,
             InvalidInput::class,
+            Unauthenticated::class,
         ]);
 
         $exceptions->render(

@@ -14,6 +14,7 @@ use Illuminate\Queue\Attributes\Tries;
 use LaravelBoilerplate\Shared\Application\Event\IntegrationEventEnvelope;
 use LaravelBoilerplate\Shared\Application\Event\IntegrationEventHandler;
 use LaravelBoilerplate\Shared\Application\Transaction\TransactionManager;
+use LaravelBoilerplate\Shared\Infrastructure\Persistence\Timestamp;
 use LogicException;
 use Psr\Clock\ClockInterface;
 
@@ -71,7 +72,7 @@ final class HandleIntegrationEvent implements ShouldQueue
             $inserted = $db->connection()->table(InboxTable::NAME)->insertOrIgnore([
                 'message_id' => $envelope->messageId,
                 'handler' => $this->handler,
-                'processed_at' => $clock->now()->format('Y-m-d H:i:s.uP'),
+                'processed_at' => $clock->now()->format(Timestamp::FORMAT),
             ]);
 
             if ($inserted === 0) {

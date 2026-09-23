@@ -8,14 +8,13 @@ use Illuminate\Database\ConnectionResolverInterface;
 use LaravelBoilerplate\Shared\Application\Event\IntegrationEvent;
 use LaravelBoilerplate\Shared\Application\Event\IntegrationEventPublisher;
 use LaravelBoilerplate\Shared\Application\Event\MessageMetadata;
+use LaravelBoilerplate\Shared\Infrastructure\Persistence\Timestamp;
 use LogicException;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class OutboxPublisher implements IntegrationEventPublisher
 {
-    private const string TIMESTAMP_FORMAT = 'Y-m-d H:i:s.uP';
-
     public function __construct(
         private ConnectionResolverInterface $db,
         private MessageMetadata $metadata,
@@ -36,7 +35,7 @@ final readonly class OutboxPublisher implements IntegrationEventPublisher
         }
 
         $metadata = json_encode($this->metadata->current(), JSON_THROW_ON_ERROR);
-        $now = $this->clock->now()->format(self::TIMESTAMP_FORMAT);
+        $now = $this->clock->now()->format(Timestamp::FORMAT);
 
         $rows = array_map(
             static fn (IntegrationEvent $event): array => [
@@ -47,7 +46,7 @@ final readonly class OutboxPublisher implements IntegrationEventPublisher
                 'aggregate_id' => $event->aggregateId(),
                 'payload' => json_encode($event->payload(), JSON_THROW_ON_ERROR),
                 'metadata' => $metadata,
-                'occurred_at' => $event->occurredAt()->format(self::TIMESTAMP_FORMAT),
+                'occurred_at' => $event->occurredAt()->format(Timestamp::FORMAT),
                 'created_at' => $now,
             ],
             $events,

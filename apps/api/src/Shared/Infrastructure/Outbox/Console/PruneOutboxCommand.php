@@ -12,6 +12,7 @@ use Illuminate\Database\Query\Builder;
 use InvalidArgumentException;
 use LaravelBoilerplate\Shared\Infrastructure\Outbox\InboxTable;
 use LaravelBoilerplate\Shared\Infrastructure\Outbox\OutboxTable;
+use LaravelBoilerplate\Shared\Infrastructure\Persistence\Timestamp;
 use Psr\Clock\ClockInterface;
 
 #[Description('Delete old published outbox and processed inbox messages')]
@@ -30,7 +31,7 @@ final class PruneOutboxCommand extends Command
         }
 
         // Срок хранения inbox обязан превышать окно повторной доставки (ретраи + ручной retry failed jobs)
-        $cutoff = $clock->now()->modify(sprintf('-%d days', (int) $days))->format('Y-m-d H:i:s.uP');
+        $cutoff = $clock->now()->modify(sprintf('-%d days', (int) $days))->format(Timestamp::FORMAT);
         $connection = $db->connection();
 
         $outbox = $this->deleteInChunks($connection->table(OutboxTable::NAME)->where('published_at', '<', $cutoff));

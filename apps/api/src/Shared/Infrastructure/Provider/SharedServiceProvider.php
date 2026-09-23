@@ -25,6 +25,7 @@ use LaravelBoilerplate\Shared\Application\Event\MessageMetadata;
 use LaravelBoilerplate\Shared\Application\Exception\AccessDenied;
 use LaravelBoilerplate\Shared\Application\Exception\InvalidInput;
 use LaravelBoilerplate\Shared\Application\Exception\NotFound;
+use LaravelBoilerplate\Shared\Application\Exception\Unauthenticated;
 use LaravelBoilerplate\Shared\Application\Health\ReadinessProbe;
 use LaravelBoilerplate\Shared\Application\Pagination\InvalidCursor;
 use LaravelBoilerplate\Shared\Application\Pagination\InvalidPageLimit;
@@ -76,6 +77,7 @@ final class SharedServiceProvider extends ServiceProvider
             InvalidCursor::class => new ProblemDefinition(400, 'pagination.invalid_cursor', 'Invalid cursor'),
             InvalidPageLimit::class => new ProblemDefinition(400, 'pagination.invalid_limit', 'Invalid page limit'),
             InvalidStoragePath::class => new ProblemDefinition(400, 'storage.invalid_path', 'Invalid storage path'),
+            Unauthenticated::class => new ProblemDefinition(401, 'unauthenticated', 'Unauthenticated'),
         ]));
 
         // scoped: новый экземпляр на запрос или джоб в Octane
