@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use LaravelBoilerplate\Shared\Application\Bus\CommandBus;
+use LaravelBoilerplate\Shared\Application\Bus\Middleware\AuthorizeCommandMiddleware;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\PublishRecordedEventsMiddleware;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\TransactionalMiddleware;
 use LaravelBoilerplate\Shared\Application\Bus\QueryBus;
@@ -65,6 +66,8 @@ final class SharedServiceProvider extends ServiceProvider
         $this->app->bind(ClockInterface::class, SystemClock::class);
         $this->app->bind(TransactionManager::class, DatabaseTransactionManager::class);
 
+        $this->app->scoped(AuthorizeCommandMiddleware::class);
+
         // Иммутабельные карты: заполняются при бутстрапе через extend() в провайдерах контекстов
         $this->app->singleton(CommandHandlerMap::class, static fn (): CommandHandlerMap => new CommandHandlerMap);
         $this->app->singleton(QueryHandlerMap::class, static fn (): QueryHandlerMap => new QueryHandlerMap);
@@ -85,6 +88,7 @@ final class SharedServiceProvider extends ServiceProvider
             $app,
             $app->make(CommandHandlerMap::class),
             [
+                $app->make(AuthorizeCommandMiddleware::class),
                 $app->make(TransactionalMiddleware::class),
                 $app->make(PublishRecordedEventsMiddleware::class),
             ],
