@@ -1,0 +1,26 @@
+post:
+  operationId: blockUser
+  summary: Block a user
+  description: |
+    Blocks the account and revokes all its sessions: refresh token families and access tokens.
+    Requires the `identity.users.block` permission. Blocking yourself is refused.
+  tags: [Identity]
+  parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    '204':
+      description: User blocked
+      headers:
+        X-Request-Id:
+          $ref: ../../components/headers/RequestId.yaml
+    '401':
+      $ref: ../../components/responses/Unauthenticated.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml

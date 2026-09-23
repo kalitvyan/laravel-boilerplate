@@ -1,0 +1,49 @@
+post:
+  operationId: registerUser
+  summary: Register a new user
+  description: |
+    Creates an account with the default role. Email is normalized to lower case,
+    so registering the same address in a different case results in 409.
+  tags: [Identity]
+  security: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required: [email, password]
+          additionalProperties: false
+          properties:
+            email:
+              type: string
+              maxLength: 254
+              example: jane@example.com
+            password:
+              type: string
+              format: password
+              minLength: 12
+              maxLength: 72
+              description: Length is counted in characters for the minimum and in bytes for the maximum
+  responses:
+    '201':
+      description: User registered
+      headers:
+        X-Request-Id:
+          $ref: ../../components/headers/RequestId.yaml
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [id]
+            additionalProperties: false
+            properties:
+              id:
+                type: string
+                format: uuid
+    '409':
+      $ref: ../../components/responses/Conflict.yaml
+    '422':
+      $ref: ../../components/responses/ValidationFailed.yaml
+    '429':
+      $ref: ../../components/responses/TooManyRequests.yaml

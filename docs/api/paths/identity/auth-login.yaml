@@ -1,0 +1,27 @@
+post:
+  operationId: logIn
+  summary: Log in with email and password
+  tags: [Identity]
+  security: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required: [email, password]
+          additionalProperties: false
+          properties:
+            email: { type: string, example: jane@example.com }
+            password: { type: string, format: password, minLength: 12, maxLength: 72 }
+  responses:
+    '200':
+      description: Session established
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/identity/Session.yaml
+    '401': { $ref: ../../components/responses/Unauthenticated.yaml }
+    '403': { $ref: ../../components/responses/Forbidden.yaml }
+    '422': { $ref: ../../components/responses/ValidationFailed.yaml }
+    '429': { $ref: ../../components/responses/TooManyRequests.yaml }

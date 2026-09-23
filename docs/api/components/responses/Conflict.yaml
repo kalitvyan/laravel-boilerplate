@@ -1,0 +1,5 @@
+description: Conflicts with the current state of the resource
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/shared/Problem.yaml

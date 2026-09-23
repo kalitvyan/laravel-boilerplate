@@ -1,0 +1,14 @@
+type: object
+required: [id, email, status, registeredAt, roles, permissions]
+additionalProperties: false
+properties:
+  id: { type: string, format: uuid }
+  email: { type: string }
+  status: { type: string, enum: [active, blocked] }
+  registeredAt: { type: string, format: date-time }
+  roles:
+    type: array
+    items: { type: string }
+  permissions:
+    type: array
+    items: { type: string }

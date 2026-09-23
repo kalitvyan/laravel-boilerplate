@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace LaravelBoilerplate\Identity\Infrastructure\Provider;
 
 use DateInterval;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\Sanctum;
 use LaravelBoilerplate\Identity\Application\Access\AssignDefaultRoleOnUserRegistered;
@@ -19,6 +23,8 @@ use LaravelBoilerplate\Identity\Application\Authentication\InvalidCredentials;
 use LaravelBoilerplate\Identity\Application\Authentication\InvalidRefreshToken;
 use LaravelBoilerplate\Identity\Application\Authentication\SessionIssuer;
 use LaravelBoilerplate\Identity\Application\Authentication\UserIsBlocked;
+use LaravelBoilerplate\Identity\Application\Event\UserBlockedTranslator;
+use LaravelBoilerplate\Identity\Application\Event\UserRegisteredTranslator;
 use LaravelBoilerplate\Identity\Application\GetUser\GetUser;
 use LaravelBoilerplate\Identity\Application\GetUser\GetUserHandler;
 use LaravelBoilerplate\Identity\Application\Port\AccessTokenIssuer;
@@ -58,6 +64,7 @@ use LaravelBoilerplate\Identity\Infrastructure\Security\Sha256SecretHasher;
 use LaravelBoilerplate\Shared\Infrastructure\Bus\CommandHandlerMap;
 use LaravelBoilerplate\Shared\Infrastructure\Bus\QueryHandlerMap;
 use LaravelBoilerplate\Shared\Infrastructure\Event\DomainEventListenerMap;
+use LaravelBoilerplate\Shared\Infrastructure\Event\DomainEventTranslatorMap;
 use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemDefinition;
 use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemMap;
 use LogicException;
@@ -129,6 +136,11 @@ final class IdentityServiceProvider extends ServiceProvider
             UserRegistered::class => [AssignDefaultRoleOnUserRegistered::class],
             UserBlocked::class => [RevokeTokensOnUserBlocked::class],
         ]));
+
+        $this->app->extend(DomainEventTranslatorMap::class, static fn (DomainEventTranslatorMap $map): DomainEventTranslatorMap => $map->with([
+            UserRegistered::class => UserRegisteredTranslator::class,
+            UserBlocked::class => UserBlockedTranslator::class,
+        ]));
     }
 
     public function boot(): void
@@ -141,6 +153,24 @@ final class IdentityServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([PruneRefreshTokensCommand::class]);
         }
+
+        Route::middleware('api')
+            ->prefix('api')
+            ->group(__DIR__.'/../../Presentation/Http/routes.php');
+
+        RateLimiter::for('login', static function (Request $request): Limit {
+            $email = $request->input('email');
+
+            // Ключ по email + IP: смена адреса не обходит лимит, а чужой запрос
+            // не расходует лимит легитимного пользователя
+            return Limit::perMinute(5)->by(sprintf(
+                'login:%s:%s',
+                is_string($email) ? mb_strtolower($email) : 'unknown',
+                $request->ip() ?? 'unknown',
+            ));
+        });
+
+        RateLimiter::for('refresh', static fn (Request $request): Limit => Limit::perMinute(30)->by('refresh:'.$request->ip()));
     }
 
     /**

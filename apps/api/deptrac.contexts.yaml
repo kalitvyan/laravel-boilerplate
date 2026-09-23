@@ -15,7 +15,12 @@ deptrac:
     # Каждый новый контекст добавляется сюда:
     - name: Identity
       collectors:
-        - { type: classLike, value: '^LaravelBoilerplate\\Identity\\' }
+        - type: bool
+          must:
+            - { type: classLike, value: '^LaravelBoilerplate\\Identity\\' }
+          must_not:
+            - { type: classLike, value: '^LaravelBoilerplate\\Identity\\Contract\\' }
+
 
   ruleset:
     Shared: ~

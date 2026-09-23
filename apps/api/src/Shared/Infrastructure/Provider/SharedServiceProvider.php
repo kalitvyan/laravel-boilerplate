@@ -13,6 +13,7 @@ use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use LaravelBoilerplate\Shared\Application\Bus\ActorContext;
 use LaravelBoilerplate\Shared\Application\Bus\CommandBus;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\AuthorizeCommandMiddleware;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\PublishRecordedEventsMiddleware;
@@ -33,6 +34,7 @@ use LaravelBoilerplate\Shared\Application\Pagination\InvalidPageLimit;
 use LaravelBoilerplate\Shared\Application\Storage\FileStorage;
 use LaravelBoilerplate\Shared\Application\Storage\InvalidStoragePath;
 use LaravelBoilerplate\Shared\Application\Transaction\TransactionManager;
+use LaravelBoilerplate\Shared\Domain\Access\Principal;
 use LaravelBoilerplate\Shared\Domain\Exception\InvalidIdentifier;
 use LaravelBoilerplate\Shared\Infrastructure\Bus\CommandHandlerMap;
 use LaravelBoilerplate\Shared\Infrastructure\Bus\ContainerCommandBus;
@@ -166,9 +168,13 @@ final class SharedServiceProvider extends ServiceProvider
 
     private function configureRateLimiting(): void
     {
-        // На этапе 6 ключом для аутентифицированных запросов станет principal id
-        RateLimiter::for('api', static fn (Request $request): Limit => Limit::perMinute(
-            config()->integer('api.rate_limit.per_minute'),
-        )->by('ip:'.$request->ip()));
+        RateLimiter::for('api', static function (Request $request): Limit {
+            $principal = $request->attributes->get(ActorContext::ATTRIBUTE);
+            $perMinute = config()->integer('api.rate_limit.per_minute');
+
+            return $principal instanceof Principal
+                ? Limit::perMinute($perMinute)->by('principal:'.$principal->id)
+                : Limit::perMinute($perMinute)->by('ip:'.$request->ip());
+        });
     }
 }

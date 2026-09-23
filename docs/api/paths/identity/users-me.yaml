@@ -1,0 +1,17 @@
+get:
+  operationId: getCurrentUser
+  summary: Get the authenticated user
+  description: Returns the profile together with the effective roles and permissions of the current access token.
+  tags: [Identity]
+  responses:
+    '200':
+      description: Current user
+      headers:
+        X-Request-Id:
+          $ref: ../../components/headers/RequestId.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/identity/User.yaml
+    '401':
+      $ref: ../../components/responses/Unauthenticated.yaml

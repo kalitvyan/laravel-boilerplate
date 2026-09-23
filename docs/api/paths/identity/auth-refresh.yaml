@@ -1,0 +1,36 @@
+post:
+  operationId: refreshSession
+  summary: Rotate the session
+  description: |
+    Exchanges a refresh token for a new pair. Refresh tokens are single-use: presenting
+    an already rotated token is treated as a leak and revokes the entire session.
+  tags: [Identity]
+  security: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required: [refreshToken]
+          additionalProperties: false
+          properties:
+            refreshToken:
+              type: string
+              maxLength: 512
+  responses:
+    '200':
+      description: Session rotated
+      headers:
+        X-Request-Id:
+          $ref: ../../components/headers/RequestId.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/identity/Session.yaml
+    '401':
+      $ref: ../../components/responses/Unauthenticated.yaml
+    '422':
+      $ref: ../../components/responses/ValidationFailed.yaml
+    '429':
+      $ref: ../../components/responses/TooManyRequests.yaml

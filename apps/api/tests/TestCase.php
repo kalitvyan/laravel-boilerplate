@@ -24,6 +24,11 @@ abstract class TestCase extends BaseTestCase
 
     public function call($method, $uri, $parameters = [], $cookies = [], $files = [], $server = [], $content = null)
     {
+        // Guard кеширует пользователя в памяти; в проде каждый запрос резолвит его заново
+        if ($this->app?->bound('auth') === true) {
+            $this->app->make('auth')->forgetGuards();
+        }
+
         $response = parent::call($method, $uri, $parameters, $cookies, $files, $server, $content);
 
         if ($this->validatesContract) {

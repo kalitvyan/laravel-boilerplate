@@ -1,0 +1,11 @@
+type: object
+required: [userId, accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt]
+additionalProperties: false
+properties:
+  userId: { type: string, format: uuid }
+  accessToken: { type: string }
+  accessTokenExpiresAt: { type: string, format: date-time }
+  refreshToken:
+    type: string
+    description: Single-use. Rotated on every refresh; reuse revokes the whole session
+  refreshTokenExpiresAt: { type: string, format: date-time }

@@ -1,0 +1,26 @@
+post:
+  operationId: logOut
+  summary: Log out
+  description: |
+    Revokes the current access token and, when a refresh token is supplied,
+    the whole refresh token family. Idempotent: logging out twice is not an error.
+  tags: [Identity]
+  requestBody:
+    required: false
+    content:
+      application/json:
+        schema:
+          type: object
+          additionalProperties: false
+          properties:
+            refreshToken:
+              type: string
+              maxLength: 512
+  responses:
+    '204':
+      description: Session revoked
+      headers:
+        X-Request-Id:
+          $ref: ../../components/headers/RequestId.yaml
+    '401':
+      $ref: ../../components/responses/Unauthenticated.yaml
