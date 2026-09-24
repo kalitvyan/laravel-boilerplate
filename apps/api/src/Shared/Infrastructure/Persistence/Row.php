@@ -75,7 +75,9 @@ final readonly class Row
             throw $this->unexpected($column, 'valid JSON');
         }
 
-        if (! is_array($decoded) || array_is_list($decoded)) {
+        // Пустой объект {} декодируется в [], и array_is_list() для него истинно,
+        // поэтому список отсекаем только у непустых массивов
+        if (! is_array($decoded) || ($decoded !== [] && array_is_list($decoded))) {
             throw $this->unexpected($column, 'JSON object');
         }
 

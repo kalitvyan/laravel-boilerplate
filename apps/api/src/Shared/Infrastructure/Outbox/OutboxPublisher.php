@@ -34,7 +34,7 @@ final readonly class OutboxPublisher implements IntegrationEventPublisher
             throw new LogicException('Integration events must be published inside a transaction');
         }
 
-        $metadata = json_encode($this->metadata->current(), JSON_THROW_ON_ERROR);
+        $metadata = json_encode($this->metadata->current(), JSON_THROW_ON_ERROR | JSON_FORCE_OBJECT);
         $now = $this->clock->now()->format(Timestamp::FORMAT);
 
         $rows = array_map(
@@ -44,7 +44,7 @@ final readonly class OutboxPublisher implements IntegrationEventPublisher
                 'event_version' => $event->eventVersion(),
                 'aggregate_type' => $event->aggregateType(),
                 'aggregate_id' => $event->aggregateId(),
-                'payload' => json_encode($event->payload(), JSON_THROW_ON_ERROR),
+                'payload' => json_encode($event->payload(), JSON_THROW_ON_ERROR | JSON_FORCE_OBJECT),
                 'metadata' => $metadata,
                 'occurred_at' => $event->occurredAt()->format(Timestamp::FORMAT),
                 'created_at' => $now,

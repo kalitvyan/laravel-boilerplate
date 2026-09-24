@@ -69,3 +69,16 @@ it('runs domain listeners and drains cascaded events', function (): void {
     // Листенер вызван один раз; второе событие обработано следующей волной без зацикливания
     expect(CascadingListener::$calls)->toBe(1);
 });
+
+it('serializes empty metadata as a json object', function (): void {
+    $this->app->extend(DomainEventTranslatorMap::class, static fn (DomainEventTranslatorMap $map): DomainEventTranslatorMap => $map->with([
+        ThingHappened::class => ThingHappenedTranslator::class,
+    ]));
+
+    // Контекст пуст: без трейсинга метаданных нет, и json_encode([]) дал бы "[]"
+    Context::flush();
+
+    $this->app->make(CommandBus::class)->dispatch(new RecordEventCommand('0191f2a0-0000-7000-8000-000000000040'));
+
+    expect(DB::table('outbox_messages')->value('metadata'))->toBe('{}');
+});

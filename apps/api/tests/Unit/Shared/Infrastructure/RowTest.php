@@ -30,3 +30,7 @@ it('fails loudly with the column name', function () use ($row): void {
 it('rejects json that is not an object', function () use ($row): void {
     $row(['payload' => '[1,2]'])->jsonObject('payload');
 })->throws(LogicException::class);
+
+it('accepts an empty json object', function () use ($row): void {
+    expect($row(['payload' => '{}'])->jsonObject('payload'))->toBe([]);
+});
