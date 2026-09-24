@@ -1,0 +1,138 @@
+name: laravel-boilerplate-prod
+
+x-api: &api
+  image: ${API_IMAGE:-laravel-boilerplate-api:prod}
+  environment: &api-env
+    APP_NAME: LaravelBoilerplate
+    APP_ENV: production
+    APP_DEBUG: "false"
+    APP_KEY: ${APP_KEY:?set APP_KEY, e.g. make prod-key}
+    APP_URL: http://localhost:8080
+
+    LOG_CHANNEL: stderr
+    LOG_LEVEL: info
+
+    DB_CONNECTION: pgsql
+    DB_HOST: postgres
+    DB_DATABASE: app
+    DB_USERNAME: app
+    DB_PASSWORD: app
+    DB_SEARCH_PATH: public,identity
+
+    CACHE_STORE: redis
+    CACHE_LIMITER: state
+    QUEUE_CONNECTION: redis
+    SESSION_DRIVER: redis
+    SESSION_CONNECTION: default
+    REDIS_CLIENT: phpredis
+    REDIS_HOST: redis-state
+    REDIS_CACHE_HOST: redis-cache
+
+    FILESYSTEM_DISK: s3
+    AWS_ACCESS_KEY_ID: rustfsadmin
+    AWS_SECRET_ACCESS_KEY: rustfsadmin
+    AWS_DEFAULT_REGION: us-east-1
+    AWS_BUCKET: app
+    AWS_ENDPOINT: http://rustfs:9000
+    AWS_PUBLIC_ENDPOINT: http://127.0.0.1:9010
+    AWS_USE_PATH_STYLE_ENDPOINT: "true"
+
+    OTEL_ENABLED: "false"
+    OTEL_METRICS_ENABLED: "false"
+
+    OCTANE_WORKERS: "2"
+  # Прод-профиль: non-root, только чтение, запись — в примонтированные tmpfs
+  read_only: true
+  tmpfs:
+    # uid=10001 обязателен: том монтируется от root, а процесс идёт под непривилегированным пользователем.
+    # В k8s тот же эффект даёт securityContext.fsGroup
+    - /tmp:uid=10001,gid=10001,mode=1777
+    - /app/storage:uid=10001,gid=10001,mode=0755
+    - /app/bootstrap/cache:uid=10001,gid=10001,mode=0755
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis-state:
+      condition: service_healthy
+    redis-cache:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  migrate:
+    <<: *api
+    command: ["migrate"]
+    restart: "no"
+
+  api:
+    <<: *api
+    command: ["web"]
+    ports:
+      - "${PROD_API_PORT:-8080}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  horizon:
+    <<: *api
+    command: ["horizon"]
+    stop_grace_period: 60s
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  outbox-relay:
+    <<: *api
+    command: ["outbox-relay"]
+    stop_grace_period: 30s
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  scheduler:
+    <<: *api
+    command: ["scheduler"]
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      retries: 10
+
+  redis-state:
+    image: redis:8-alpine
+    command: redis-server --maxmemory 256mb --maxmemory-policy noeviction --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  redis-cache:
+    image: redis:8-alpine
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save "" --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  rustfs:
+    image: rustfs/rustfs:latest
+    environment:
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_ACCESS_KEY: rustfsadmin
+      RUSTFS_SECRET_KEY: rustfsadmin

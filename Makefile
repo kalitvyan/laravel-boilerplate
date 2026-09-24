@@ -143,3 +143,84 @@ spec: spec-lint ## Lint and bundle spec into docs/api/dist/openapi.yaml
 .PHONY: spec-docs
 spec-docs: spec ## Build static HTML docs into docs/api/dist/index.html
 	$(REDOCLY) build-docs dist/openapi.yaml --output dist/index.html
+
+##@ Production image
+
+-include .make.env
+
+REGISTRY ?=
+IMAGE_NAME ?= laravel-boilerplate-api
+TAG ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
+PLATFORM ?= linux/amd64
+
+API_IMAGE_PROD := $(if $(REGISTRY),$(REGISTRY)/,)$(IMAGE_NAME):$(TAG)
+API_IMAGE_LATEST := $(if $(REGISTRY),$(REGISTRY)/,)$(IMAGE_NAME):latest
+
+COMPOSE_PROD := API_IMAGE=$(API_IMAGE_PROD) docker compose -f infra/docker/compose/compose.prod.yaml
+
+.PHONY: prod-image
+prod-image: ## Build production image (REGISTRY=ghcr.io/you to tag for a registry)
+	docker build \
+		-f infra/docker/api/Dockerfile \
+		--target prod \
+		--platform $(PLATFORM) \
+		-t $(API_IMAGE_PROD) \
+		-t $(API_IMAGE_LATEST) \
+		.
+	@echo "built $(API_IMAGE_PROD)"
+
+.PHONY: prod-image-nocache
+prod-image-nocache: ## Rebuild production image ignoring the layer cache
+	docker build \
+		-f infra/docker/api/Dockerfile \
+		--target prod \
+		--platform $(PLATFORM) \
+		--no-cache \
+		--pull \
+		-t $(API_IMAGE_PROD) \
+		-t $(API_IMAGE_LATEST) \
+		.
+	@echo "built $(API_IMAGE_PROD) (no cache)"
+
+.PHONY: prod-image-multiarch
+prod-image-multiarch: ## Build and push a multi-arch image (requires REGISTRY)
+	@test -n "$(REGISTRY)" || { echo "REGISTRY is not set"; exit 1; }
+	docker buildx build \
+		-f infra/docker/api/Dockerfile \
+		--target prod \
+		--platform linux/amd64,linux/arm64 \
+		-t $(API_IMAGE_PROD) \
+		-t $(API_IMAGE_LATEST) \
+		--push \
+		.
+
+.PHONY: prod-push
+prod-push: ## Push image (requires REGISTRY)
+	@test -n "$(REGISTRY)" || { echo "REGISTRY is not set: make prod-push REGISTRY=ghcr.io/kalitvyan"; exit 1; }
+	docker push $(API_IMAGE_PROD)
+	docker push $(API_IMAGE_LATEST)
+
+.PHONY: prod-login
+prod-login: ## Log in to GHCR (expects $$GHCR_TOKEN with write:packages)
+	@test -n "$(GHCR_TOKEN)" || { echo "GHCR_TOKEN is not set"; exit 1; }
+	@echo "$(GHCR_TOKEN)" | docker login ghcr.io -u kalitvyan --password-stdin
+
+.PHONY: prod-key
+prod-key: ## Generate APP_KEY for the prod-like stack
+	@docker run --rm $(API_IMAGE_PROD) artisan key:generate --show
+
+.PHONY: prod-up
+prod-up: ## Start the prod-like stack
+	$(COMPOSE_PROD) up -d
+
+.PHONY: prod-down
+prod-down: ## Stop the prod-like stack
+	$(COMPOSE_PROD) down -v
+
+.PHONY: prod-logs
+prod-logs: ## Logs: make prod-logs s=api
+	$(COMPOSE_PROD) logs -f --tail=200 $(s)
+
+.PHONY: prod-shell
+prod-shell: ## Shell in the running prod api container
+	$(COMPOSE_PROD) exec api sh

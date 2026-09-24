@@ -1,0 +1,23 @@
+**/node_modules
+**/vendor
+**/.git
+**/.github
+**/.idea
+**/.vscode
+**/.DS_Store
+
+# Секреты не должны попасть даже в промежуточные слои
+**/.env
+**/.env.*
+!**/.env.example
+
+apps/api/storage/logs/*
+apps/api/storage/framework/cache/*
+apps/api/storage/framework/sessions/*
+apps/api/storage/framework/views/*
+apps/api/.phpunit.cache
+apps/api/.deptrac.*.cache
+
+apps/web/.next
+docs/api/dist
+infra/docker/compose/.data

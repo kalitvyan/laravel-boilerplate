@@ -11,9 +11,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Схема не удаляется при migrate:fresh (только её таблицы), поэтому IF NOT EXISTS
-        DB::statement('CREATE SCHEMA IF NOT EXISTS identity');
-
         Schema::create('identity.users', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->string('email', 254);
