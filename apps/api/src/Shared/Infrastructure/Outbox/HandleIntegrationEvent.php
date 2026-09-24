@@ -16,7 +16,13 @@ use LaravelBoilerplate\Shared\Application\Event\IntegrationEventHandler;
 use LaravelBoilerplate\Shared\Application\Transaction\TransactionManager;
 use LaravelBoilerplate\Shared\Infrastructure\Persistence\Timestamp;
 use LogicException;
+use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
+use OpenTelemetry\API\Trace\SpanKind;
+use OpenTelemetry\API\Trace\StatusCode;
+use OpenTelemetry\API\Trace\TracerProviderInterface;
+use OpenTelemetry\Context\Context;
 use Psr\Clock\ClockInterface;
+use Throwable;
 
 #[Timeout(60)]
 #[Tries(10)]
@@ -53,6 +59,7 @@ final class HandleIntegrationEvent implements ShouldQueue
         ConnectionResolverInterface $db,
         ContextRepository $context,
         ClockInterface $clock,
+        TracerProviderInterface $tracerProvider,
     ): void {
         $envelope = IntegrationEventEnvelope::fromArray($this->envelope);
 
@@ -68,18 +75,52 @@ final class HandleIntegrationEvent implements ShouldQueue
             throw new LogicException(sprintf('%s must implement %s', $this->handler, IntegrationEventHandler::class));
         }
 
-        $transactions->transactional(function () use ($db, $clock, $envelope, $handler): void {
-            $inserted = $db->connection()->table(InboxTable::NAME)->insertOrIgnore([
-                'message_id' => $envelope->messageId,
-                'handler' => $this->handler,
-                'processed_at' => $clock->now()->format(Timestamp::FORMAT),
-            ]);
+        $traceparent = $envelope->metadata['traceparent'] ?? null;
 
-            if ($inserted === 0) {
-                return; // уже обработано этим хендлером
-            }
+        // Родитель из сообщения: трейс продолжается от HTTP-запроса, породившего событие
+        $parent = is_string($traceparent)
+            ? TraceContextPropagator::getInstance()->extract(['traceparent' => $traceparent])
+            : Context::getCurrent();
 
-            $handler($envelope);
-        });
+        $span = $tracerProvider->getTracer('laravel-boilerplate')
+            ->spanBuilder(sprintf('consume %s', $envelope->eventName))
+            ->setParent($parent)
+            ->setSpanKind(SpanKind::KIND_CONSUMER)
+            ->setAttributes([
+                'messaging.message.id' => $envelope->messageId,
+                'messaging.destination.name' => self::QUEUE,
+                'messaging.operation.name' => 'process',
+                'code.namespace' => $this->handler,
+            ])
+            ->startSpan();
+
+        $scope = $span->activate();
+
+        try {
+            $transactions->transactional(function () use ($db, $clock, $envelope, $handler, $span): void {
+                $inserted = $db->connection()->table(InboxTable::NAME)->insertOrIgnore([
+                    'message_id' => $envelope->messageId,
+                    'handler' => $this->handler,
+                    'processed_at' => Timestamp::format($clock->now()),
+                ]);
+
+                if ($inserted === 0) {
+                    // Повторная доставка: эффекты в БД уже применены
+                    $span->setAttribute('messaging.duplicate', true);
+
+                    return;
+                }
+
+                $handler($envelope);
+            });
+        } catch (Throwable $e) {
+            $span->recordException($e);
+            $span->setStatus(StatusCode::STATUS_ERROR, $e->getMessage());
+
+            throw $e;
+        } finally {
+            $scope->detach();
+            $span->end();
+        }
     }
 }

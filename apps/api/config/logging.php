@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use LaravelBoilerplate\Shared\Infrastructure\Logging\TraceContextProcessor;
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -111,8 +113,8 @@ return [
             'handler_with' => [
                 'stream' => 'php://stderr',
             ],
-            'formatter' => env('LOG_STDERR_FORMATTER'),
-            'processors' => [PsrLogMessageProcessor::class],
+            'formatter' => JsonFormatter::class,
+            'processors' => [PsrLogMessageProcessor::class, TraceContextProcessor::class],
         ],
 
         'syslog' => [

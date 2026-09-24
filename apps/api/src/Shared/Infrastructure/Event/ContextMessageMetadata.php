@@ -6,6 +6,7 @@ namespace LaravelBoilerplate\Shared\Infrastructure\Event;
 
 use Illuminate\Log\Context\Repository as ContextRepository;
 use LaravelBoilerplate\Shared\Application\Event\MessageMetadata;
+use LaravelBoilerplate\Shared\Application\Tracing\Tracer;
 
 /**
  * Laravel Context живёт в пределах запроса и автоматически переносится в джобы,
@@ -13,12 +14,28 @@ use LaravelBoilerplate\Shared\Application\Event\MessageMetadata;
  */
 final readonly class ContextMessageMetadata implements MessageMetadata
 {
-    public function __construct(private ContextRepository $context) {}
+    public function __construct(
+        private ContextRepository $context,
+        private Tracer $tracer,
+    ) {}
 
     public function current(): array
     {
+        $metadata = [];
+
         $traceId = $this->context->get('trace_id');
 
-        return is_string($traceId) ? ['trace_id' => $traceId] : [];
+        if (is_string($traceId)) {
+            $metadata['trace_id'] = $traceId;
+        }
+
+        $traceparent = $this->tracer->currentTraceparent();
+
+        if ($traceparent !== null) {
+            // Консьюмер восстановит родителя и продолжит тот же трейс
+            $metadata['traceparent'] = $traceparent;
+        }
+
+        return $metadata;
     }
 }

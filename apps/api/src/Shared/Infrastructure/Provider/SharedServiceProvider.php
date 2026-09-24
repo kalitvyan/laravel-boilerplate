@@ -11,12 +11,17 @@ use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Filesystem\FilesystemManager;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
+use Illuminate\Queue\Events\JobFailed;
+use Illuminate\Queue\Events\JobProcessed;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Octane\Events\RequestTerminated;
 use LaravelBoilerplate\Shared\Application\Bus\ActorContext;
 use LaravelBoilerplate\Shared\Application\Bus\CommandBus;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\AuthorizeCommandMiddleware;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\PublishRecordedEventsMiddleware;
+use LaravelBoilerplate\Shared\Application\Bus\Middleware\TraceCommandMiddleware;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\TransactionalMiddleware;
 use LaravelBoilerplate\Shared\Application\Bus\QueryBus;
 use LaravelBoilerplate\Shared\Application\Event\DomainEventDispatcher;
@@ -33,6 +38,7 @@ use LaravelBoilerplate\Shared\Application\Pagination\InvalidCursor;
 use LaravelBoilerplate\Shared\Application\Pagination\InvalidPageLimit;
 use LaravelBoilerplate\Shared\Application\Storage\FileStorage;
 use LaravelBoilerplate\Shared\Application\Storage\InvalidStoragePath;
+use LaravelBoilerplate\Shared\Application\Tracing\Tracer;
 use LaravelBoilerplate\Shared\Application\Transaction\TransactionManager;
 use LaravelBoilerplate\Shared\Domain\Access\Principal;
 use LaravelBoilerplate\Shared\Domain\Exception\InvalidIdentifier;
@@ -50,16 +56,24 @@ use LaravelBoilerplate\Shared\Infrastructure\Event\MappedDomainEventDispatcher;
 use LaravelBoilerplate\Shared\Infrastructure\Event\MappedIntegrationEventFactory;
 use LaravelBoilerplate\Shared\Infrastructure\Health\DatabaseHealthCheck;
 use LaravelBoilerplate\Shared\Infrastructure\Health\RedisHealthCheck;
+use LaravelBoilerplate\Shared\Infrastructure\Http\TraceRequest;
 use LaravelBoilerplate\Shared\Infrastructure\Outbox\Console\PruneOutboxCommand;
 use LaravelBoilerplate\Shared\Infrastructure\Outbox\Console\RelayOutboxCommand;
 use LaravelBoilerplate\Shared\Infrastructure\Outbox\OutboxPublisher;
 use LaravelBoilerplate\Shared\Infrastructure\Storage\LaravelFileStorage;
+use LaravelBoilerplate\Shared\Infrastructure\Tracing\FlushTraces;
+use LaravelBoilerplate\Shared\Infrastructure\Tracing\OpenTelemetryTracer;
+use LaravelBoilerplate\Shared\Infrastructure\Tracing\TracerProviderFactory;
 use LaravelBoilerplate\Shared\Infrastructure\Transaction\DatabaseTransactionManager;
 use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemDefinition;
 use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemMap;
 use LogicException;
+use OpenTelemetry\API\Trace\TracerProviderInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
+
+// SharedPresentation\Http\CurrentPrincipal больше не импортируется:
+// провайдер читает атрибут напрямую через ActorContext::ATTRIBUTE
 
 final class SharedServiceProvider extends ServiceProvider
 {
@@ -91,6 +105,7 @@ final class SharedServiceProvider extends ServiceProvider
             $app->make(CommandHandlerMap::class),
             [
                 $app->make(AuthorizeCommandMiddleware::class),
+                $app->make(TraceCommandMiddleware::class),
                 $app->make(TransactionalMiddleware::class),
                 $app->make(PublishRecordedEventsMiddleware::class),
             ],
@@ -133,6 +148,23 @@ final class SharedServiceProvider extends ServiceProvider
 
             return new LaravelFileStorage($disk, $presignDisk, $app->make(ClockInterface::class));
         });
+
+        $this->app->singleton(TracerProviderInterface::class, static fn (): TracerProviderInterface => new TracerProviderFactory(
+            config()->boolean('otel.enabled'),
+            config()->string('otel.endpoint'),
+            config()->string('otel.service.name'),
+            config()->string('otel.service.namespace'),
+            config()->string('otel.service.version'),
+            config()->float('otel.sample_ratio'),
+            config()->string('app.env'),
+        )->create());
+
+        $this->app->singleton(Tracer::class, OpenTelemetryTracer::class);
+
+        $this->app->bind(TraceRequest::class, static fn (Application $app): TraceRequest => new TraceRequest(
+            $app->make(TracerProviderInterface::class),
+            config()->boolean('otel.enabled'),
+        ));
     }
 
     public function boot(): void
@@ -148,6 +180,14 @@ final class SharedServiceProvider extends ServiceProvider
                 PruneOutboxCommand::class,
             ]);
         }
+
+        if (class_exists(RequestTerminated::class)) {
+            Event::listen(RequestTerminated::class, FlushTraces::class);
+        }
+
+        Event::listen(JobProcessed::class, FlushTraces::class);
+        Event::listen(JobFailed::class, FlushTraces::class);
+        $this->app->terminating(FlushTraces::class);
     }
 
     private function configureTrustedProxies(): void

@@ -7,12 +7,18 @@
     "license": "MIT",
     "require": {
         "php": "^8.5",
+        "guzzlehttp/guzzle": "^7.15",
         "laravel/framework": "^13.17",
         "laravel/horizon": "^5.49",
         "laravel/octane": "^2.19",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "league/flysystem-aws-s3-v3": "^3.35",
+        "nyholm/psr7": "^1.8",
+        "open-telemetry/exporter-otlp": "^1.4",
+        "open-telemetry/sdk": "^1.15",
+        "open-telemetry/sem-conv": "^1.44",
+        "php-http/guzzle7-adapter": "^1.1",
         "psr/clock": "^1.0",
         "symfony/uid": "^8.1"
     },
@@ -27,7 +33,6 @@
         "league/openapi-psr7-validator": "^0.24.0",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
-        "nyholm/psr7": "^1.8",
         "pestphp/pest": "^5.2",
         "pestphp/pest-plugin-laravel": "^5.0",
         "phpstan/phpstan-deprecation-rules": "^2.0",
@@ -115,7 +120,8 @@
         "sort-packages": true,
         "allow-plugins": {
             "pestphp/pest-plugin": true,
-            "php-http/discovery": true
+            "php-http/discovery": true,
+            "tbachert/spi": true
         }
     },
     "minimum-stability": "stable",

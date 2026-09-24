@@ -12,6 +12,7 @@ use LaravelBoilerplate\Shared\Application\Exception\InvalidInput;
 use LaravelBoilerplate\Shared\Application\Exception\NotFound;
 use LaravelBoilerplate\Shared\Application\Exception\Unauthenticated;
 use LaravelBoilerplate\Shared\Domain\Exception\DomainError;
+use LaravelBoilerplate\Shared\Infrastructure\Http\TraceRequest;
 use LaravelBoilerplate\Shared\Presentation\Http\Middleware\AssignRequestId;
 use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemRenderer;
 
@@ -22,7 +23,9 @@ return Application::configure(basePath: dirname(__DIR__))
         apiPrefix: 'api',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->prepend(AssignRequestId::class);
+        // Порядок middleware важен: TraceRequest должен идти до AssignRequestId,
+        // иначе спана ещё нет
+        $middleware->prepend([TraceRequest::class, AssignRequestId::class]);
 
         // Троттлинг группы api через Redis (redis-state) атомарными Lua-скриптами
         $middleware->throttleApi(redis: true);
