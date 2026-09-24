@@ -23,6 +23,7 @@ use LaravelBoilerplate\Identity\Application\Authentication\InvalidCredentials;
 use LaravelBoilerplate\Identity\Application\Authentication\InvalidRefreshToken;
 use LaravelBoilerplate\Identity\Application\Authentication\SessionIssuer;
 use LaravelBoilerplate\Identity\Application\Authentication\UserIsBlocked;
+use LaravelBoilerplate\Identity\Application\Event\LogUserRegistered;
 use LaravelBoilerplate\Identity\Application\Event\UserBlockedTranslator;
 use LaravelBoilerplate\Identity\Application\Event\UserRegisteredTranslator;
 use LaravelBoilerplate\Identity\Application\GetUser\GetUser;
@@ -37,6 +38,7 @@ use LaravelBoilerplate\Identity\Application\ReadModel\UserReadModel;
 use LaravelBoilerplate\Identity\Application\RegisterUser\RegisterUser;
 use LaravelBoilerplate\Identity\Application\RegisterUser\RegisterUserHandler;
 use LaravelBoilerplate\Identity\Application\UserNotFound;
+use LaravelBoilerplate\Identity\Contract\Event\UserRegisteredV1;
 use LaravelBoilerplate\Identity\Domain\Access\RoleCatalog;
 use LaravelBoilerplate\Identity\Domain\Access\UnknownRole;
 use LaravelBoilerplate\Identity\Domain\Access\UserRoleRepository;
@@ -65,6 +67,7 @@ use LaravelBoilerplate\Shared\Infrastructure\Bus\CommandHandlerMap;
 use LaravelBoilerplate\Shared\Infrastructure\Bus\QueryHandlerMap;
 use LaravelBoilerplate\Shared\Infrastructure\Event\DomainEventListenerMap;
 use LaravelBoilerplate\Shared\Infrastructure\Event\DomainEventTranslatorMap;
+use LaravelBoilerplate\Shared\Infrastructure\Event\IntegrationEventSubscriberMap;
 use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemDefinition;
 use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemMap;
 use LogicException;
@@ -141,6 +144,10 @@ final class IdentityServiceProvider extends ServiceProvider
             UserRegistered::class => UserRegisteredTranslator::class,
             UserBlocked::class => UserBlockedTranslator::class,
         ]));
+
+        // TODO: remove it
+        $this->app->extend(IntegrationEventSubscriberMap::class, static fn (IntegrationEventSubscriberMap $map): IntegrationEventSubscriberMap => $map
+            ->with(UserRegisteredV1::NAME, 1, [LogUserRegistered::class]));
     }
 
     public function boot(): void

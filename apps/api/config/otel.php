@@ -18,4 +18,12 @@ return [
 
     // Пути, которые не трассируются (пробы оркестратора)
     'ignore_paths' => ['health/*'],
+
+    'metrics' => [
+        'enabled' => (bool) env('OTEL_METRICS_ENABLED', env('OTEL_ENABLED', false)),
+        // Интервал экспорта: чаще 15 секунд для API смысла не имеет
+        'export_interval_ms' => (int) env('OTEL_METRIC_EXPORT_INTERVAL', 15000),
+    ],
+
+    'flush_interval_ms' => (int) env('OTEL_FLUSH_INTERVAL', 10000),
 ];

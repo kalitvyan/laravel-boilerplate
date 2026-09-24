@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use LaravelBoilerplate\Identity\Contract\Event\UserRegisteredV1;
 use LaravelBoilerplate\Shared\Application\Bus\ActorAware;
 use LaravelBoilerplate\Shared\Application\Bus\RequiresPermission;
+use LaravelBoilerplate\Shared\Infrastructure\Event\IntegrationEventSubscriberMap;
 use Symfony\Component\Finder\Finder;
 
 /**
@@ -61,4 +63,11 @@ it('references only declared permissions', function () use ($commandsWithPermiss
     }
 
     expect($unknown)->toBe([]);
+});
+
+it('registers integration event subscribers at container build time', function (): void {
+    $map = $this->app->make(IntegrationEventSubscriberMap::class);
+
+    // extend() в boot() не успевает примениться: карта резолвится раньше
+    expect($map->handlersFor(UserRegisteredV1::NAME, 1))->not->toBeEmpty();
 });

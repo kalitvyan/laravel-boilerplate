@@ -16,10 +16,10 @@ use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
-use Laravel\Octane\Events\RequestTerminated;
 use LaravelBoilerplate\Shared\Application\Bus\ActorContext;
 use LaravelBoilerplate\Shared\Application\Bus\CommandBus;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\AuthorizeCommandMiddleware;
+use LaravelBoilerplate\Shared\Application\Bus\Middleware\MeasureCommandMiddleware;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\PublishRecordedEventsMiddleware;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\TraceCommandMiddleware;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\TransactionalMiddleware;
@@ -34,6 +34,7 @@ use LaravelBoilerplate\Shared\Application\Exception\InvalidInput;
 use LaravelBoilerplate\Shared\Application\Exception\NotFound;
 use LaravelBoilerplate\Shared\Application\Exception\Unauthenticated;
 use LaravelBoilerplate\Shared\Application\Health\ReadinessProbe;
+use LaravelBoilerplate\Shared\Application\Metrics\Metrics;
 use LaravelBoilerplate\Shared\Application\Pagination\InvalidCursor;
 use LaravelBoilerplate\Shared\Application\Pagination\InvalidPageLimit;
 use LaravelBoilerplate\Shared\Application\Storage\FileStorage;
@@ -57,23 +58,26 @@ use LaravelBoilerplate\Shared\Infrastructure\Event\MappedIntegrationEventFactory
 use LaravelBoilerplate\Shared\Infrastructure\Health\DatabaseHealthCheck;
 use LaravelBoilerplate\Shared\Infrastructure\Health\RedisHealthCheck;
 use LaravelBoilerplate\Shared\Infrastructure\Http\TraceRequest;
+use LaravelBoilerplate\Shared\Infrastructure\Metrics\MeterProviderFactory;
+use LaravelBoilerplate\Shared\Infrastructure\Metrics\NullMetrics;
+use LaravelBoilerplate\Shared\Infrastructure\Metrics\OpenTelemetryMetrics;
+use LaravelBoilerplate\Shared\Infrastructure\Outbox\Console\CollectTelemetryMetricsCommand;
 use LaravelBoilerplate\Shared\Infrastructure\Outbox\Console\PruneOutboxCommand;
 use LaravelBoilerplate\Shared\Infrastructure\Outbox\Console\RelayOutboxCommand;
 use LaravelBoilerplate\Shared\Infrastructure\Outbox\OutboxPublisher;
 use LaravelBoilerplate\Shared\Infrastructure\Storage\LaravelFileStorage;
-use LaravelBoilerplate\Shared\Infrastructure\Tracing\FlushTraces;
+use LaravelBoilerplate\Shared\Infrastructure\Telemetry\FlushTelemetry;
+use LaravelBoilerplate\Shared\Infrastructure\Telemetry\TelemetryResourceFactory;
 use LaravelBoilerplate\Shared\Infrastructure\Tracing\OpenTelemetryTracer;
 use LaravelBoilerplate\Shared\Infrastructure\Tracing\TracerProviderFactory;
 use LaravelBoilerplate\Shared\Infrastructure\Transaction\DatabaseTransactionManager;
 use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemDefinition;
 use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemMap;
 use LogicException;
+use OpenTelemetry\API\Metrics\MeterProviderInterface;
 use OpenTelemetry\API\Trace\TracerProviderInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
-
-// SharedPresentation\Http\CurrentPrincipal больше не импортируется:
-// провайдер читает атрибут напрямую через ActorContext::ATTRIBUTE
 
 final class SharedServiceProvider extends ServiceProvider
 {
@@ -106,6 +110,7 @@ final class SharedServiceProvider extends ServiceProvider
             [
                 $app->make(AuthorizeCommandMiddleware::class),
                 $app->make(TraceCommandMiddleware::class),
+                $app->make(MeasureCommandMiddleware::class),
                 $app->make(TransactionalMiddleware::class),
                 $app->make(PublishRecordedEventsMiddleware::class),
             ],
@@ -149,21 +154,41 @@ final class SharedServiceProvider extends ServiceProvider
             return new LaravelFileStorage($disk, $presignDisk, $app->make(ClockInterface::class));
         });
 
-        $this->app->singleton(TracerProviderInterface::class, static fn (): TracerProviderInterface => new TracerProviderFactory(
-            config()->boolean('otel.enabled'),
-            config()->string('otel.endpoint'),
+        $this->app->singleton(TelemetryResourceFactory::class, static fn (): TelemetryResourceFactory => new TelemetryResourceFactory(
             config()->string('otel.service.name'),
             config()->string('otel.service.namespace'),
             config()->string('otel.service.version'),
-            config()->float('otel.sample_ratio'),
             config()->string('app.env'),
+        ));
+
+        $this->app->singleton(TracerProviderInterface::class, static fn (Application $app): TracerProviderInterface => new TracerProviderFactory(
+            config()->boolean('otel.enabled'),
+            config()->string('otel.endpoint'),
+            config()->float('otel.sample_ratio'),
+            $app->make(TelemetryResourceFactory::class),
+        )->create());
+
+        $this->app->singleton(MeterProviderInterface::class, static fn (Application $app): MeterProviderInterface => new MeterProviderFactory(
+            config()->boolean('otel.metrics.enabled'),
+            config()->string('otel.endpoint'),
+            $app->make(TelemetryResourceFactory::class),
         )->create());
 
         $this->app->singleton(Tracer::class, OpenTelemetryTracer::class);
 
+        $this->app->singleton(Metrics::class, static fn (Application $app): Metrics => config()->boolean('otel.metrics.enabled')
+            ? new OpenTelemetryMetrics($app->make(MeterProviderInterface::class))
+            : new NullMetrics);
+
         $this->app->bind(TraceRequest::class, static fn (Application $app): TraceRequest => new TraceRequest(
             $app->make(TracerProviderInterface::class),
             config()->boolean('otel.enabled'),
+        ));
+
+        $this->app->singleton(FlushTelemetry::class, static fn (Application $app): FlushTelemetry => new FlushTelemetry(
+            $app->make(TracerProviderInterface::class),
+            $app->make(MeterProviderInterface::class),
+            config()->integer('otel.flush_interval_ms') / 1000,
         ));
     }
 
@@ -173,21 +198,15 @@ final class SharedServiceProvider extends ServiceProvider
 
         $this->configureTrustedProxies();
         $this->configureRateLimiting();
+        $this->configureTelemetryFlush();
 
         if ($this->app->runningInConsole()) {
             $this->commands([
                 RelayOutboxCommand::class,
                 PruneOutboxCommand::class,
+                CollectTelemetryMetricsCommand::class,
             ]);
         }
-
-        if (class_exists(RequestTerminated::class)) {
-            Event::listen(RequestTerminated::class, FlushTraces::class);
-        }
-
-        Event::listen(JobProcessed::class, FlushTraces::class);
-        Event::listen(JobFailed::class, FlushTraces::class);
-        $this->app->terminating(FlushTraces::class);
     }
 
     private function configureTrustedProxies(): void
@@ -216,5 +235,12 @@ final class SharedServiceProvider extends ServiceProvider
                 ? Limit::perMinute($perMinute)->by('principal:'.$principal->id)
                 : Limit::perMinute($perMinute)->by('ip:'.$request->ip());
         });
+    }
+
+    private function configureTelemetryFlush(): void
+    {
+        // Веб-запросы флашит terminable middleware; здесь только воркеры очередей
+        Event::listen(JobProcessed::class, FlushTelemetry::class);
+        Event::listen(JobFailed::class, FlushTelemetry::class);
     }
 }

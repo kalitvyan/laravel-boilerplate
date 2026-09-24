@@ -13,6 +13,8 @@ use Illuminate\Queue\Attributes\Timeout;
 use Illuminate\Queue\Attributes\Tries;
 use LaravelBoilerplate\Shared\Application\Event\IntegrationEventEnvelope;
 use LaravelBoilerplate\Shared\Application\Event\IntegrationEventHandler;
+use LaravelBoilerplate\Shared\Application\Metrics\MetricName;
+use LaravelBoilerplate\Shared\Application\Metrics\Metrics;
 use LaravelBoilerplate\Shared\Application\Transaction\TransactionManager;
 use LaravelBoilerplate\Shared\Infrastructure\Persistence\Timestamp;
 use LogicException;
@@ -60,6 +62,7 @@ final class HandleIntegrationEvent implements ShouldQueue
         ContextRepository $context,
         ClockInterface $clock,
         TracerProviderInterface $tracerProvider,
+        Metrics $metrics,
     ): void {
         $envelope = IntegrationEventEnvelope::fromArray($this->envelope);
 
@@ -77,7 +80,7 @@ final class HandleIntegrationEvent implements ShouldQueue
 
         $traceparent = $envelope->metadata['traceparent'] ?? null;
 
-        // Родитель из сообщения: трейс продолжается от HTTP-запроса, породившего событие
+        // Родитель из сообщения: трейс продолжается от запроса, породившего событие
         $parent = is_string($traceparent)
             ? TraceContextPropagator::getInstance()->extract(['traceparent' => $traceparent])
             : Context::getCurrent();
@@ -95,9 +98,11 @@ final class HandleIntegrationEvent implements ShouldQueue
             ->startSpan();
 
         $scope = $span->activate();
+        $startedAt = hrtime(true);
+        $outcome = 'success';
 
         try {
-            $transactions->transactional(function () use ($db, $clock, $envelope, $handler, $span): void {
+            $transactions->transactional(function () use ($db, $clock, $envelope, $handler, $span, $metrics, &$outcome): void {
                 $inserted = $db->connection()->table(InboxTable::NAME)->insertOrIgnore([
                     'message_id' => $envelope->messageId,
                     'handler' => $this->handler,
@@ -107,6 +112,8 @@ final class HandleIntegrationEvent implements ShouldQueue
                 if ($inserted === 0) {
                     // Повторная доставка: эффекты в БД уже применены
                     $span->setAttribute('messaging.duplicate', true);
+                    $metrics->increment(MetricName::MESSAGE_DUPLICATES, ['event' => $envelope->eventName]);
+                    $outcome = 'duplicate';
 
                     return;
                 }
@@ -114,11 +121,18 @@ final class HandleIntegrationEvent implements ShouldQueue
                 $handler($envelope);
             });
         } catch (Throwable $e) {
+            $outcome = 'failure';
             $span->recordException($e);
             $span->setStatus(StatusCode::STATUS_ERROR, $e->getMessage());
 
             throw $e;
         } finally {
+            $metrics->record(
+                MetricName::MESSAGING_PROCESS_DURATION,
+                (hrtime(true) - $startedAt) / 1_000_000_000,
+                ['event' => $envelope->eventName, 'outcome' => $outcome],
+            );
+
             $scope->detach();
             $span->end();
         }

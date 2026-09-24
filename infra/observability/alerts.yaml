@@ -1,0 +1,28 @@
+groups:
+  - name: laravel-boilerplate
+    rules:
+      # Ловит упавший relay, залипшую транзакцию и забитую очередь одним правилом
+      - alert: OutboxLagHigh
+        expr: max(app_outbox_lag_seconds) > 60
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: Integration events are not being published
+
+      # Битые сообщения требуют ручного вмешательства: ретраи им не помогут
+      - alert: OutboxDeadLetters
+        expr: max(app_outbox_dead_lettered) > 0
+        for: 1m
+        labels: { severity: warning }
+
+      - alert: HighServerErrorRate
+        expr: |
+          sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+            / sum(rate(http_server_request_duration_seconds_count[5m])) > 0.01
+        for: 5m
+        labels: { severity: critical }
+
+      - alert: QueueBacklogGrowing
+        expr: max by (queue) (app_queue_depth) > 1000
+        for: 10m
+        labels: { severity: warning }

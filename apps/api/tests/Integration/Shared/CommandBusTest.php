@@ -5,11 +5,13 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\DB;
 use LaravelBoilerplate\Shared\Application\Bus\CommandBus;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\AuthorizeCommandMiddleware;
+use LaravelBoilerplate\Shared\Application\Bus\Middleware\MeasureCommandMiddleware;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\PublishRecordedEventsMiddleware;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\TraceCommandMiddleware;
 use LaravelBoilerplate\Shared\Application\Bus\Middleware\TransactionalMiddleware;
 use LaravelBoilerplate\Shared\Infrastructure\Bus\CommandHandlerMap;
 use LaravelBoilerplate\Shared\Infrastructure\Bus\ContainerCommandBus;
+use ReflectionProperty;
 use Tests\Fixtures\Shared\Bus\RecordTransactionLevel;
 use Tests\Fixtures\Shared\Bus\RecordTransactionLevelHandler;
 
@@ -48,14 +50,21 @@ it('fails loudly when handler is missing', function (): void {
 
 it('assembles the middleware pipeline in order', function (): void {
     $bus = $this->app->make(CommandBus::class);
+
     $middleware = new ReflectionProperty($bus, 'middleware')->getValue($bus);
 
-    expect(array_map(static fn (object $m): string => $m::class, $middleware))->toBe([
-        // Авторизация до транзакции: отказ не должен открывать транзакцию.
-        // Trace снаружи транзакции, чтобы на спане было видно время удержания блокировок.
-        // Публикация событий внутри неё: строки outbox коммитятся вместе с агрегатом
+    expect($middleware)->toBeArray();
+
+    $classes = array_map(static fn (object $item): string => $item::class, $middleware);
+
+    // Порядок — архитектурное решение, а не деталь:
+    // Authorize до транзакции, чтобы отказ её не открывал;
+    // Trace и Measure снаружи, чтобы видеть время удержания блокировок;
+    // PublishRecordedEvents внутри, чтобы outbox коммитился вместе с агрегатом
+    expect($classes)->toBe([
         AuthorizeCommandMiddleware::class,
         TraceCommandMiddleware::class,
+        MeasureCommandMiddleware::class,
         TransactionalMiddleware::class,
         PublishRecordedEventsMiddleware::class,
     ]);
