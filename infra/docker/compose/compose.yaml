@@ -66,6 +66,35 @@ services:
     stop_signal: SIGTERM
     stop_grace_period: 30s
 
+  web:
+    image: node:24-alpine
+    working_dir: /repo/apps/web
+    # corepack-шимы в PATH: без них shadcn CLI и другие инструменты не находят pnpm
+    command: >
+      sh -c "mkdir -p /tmp/bin
+      && corepack enable --install-directory /tmp/bin
+      && corepack pnpm install --frozen-lockfile
+      && corepack pnpm dev"
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      HOME: /tmp
+      PATH: /tmp/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+      # Браузер сюда не ходит: адрес используется только серверной частью Next
+      API_URL: http://api:8000
+      SESSION_SECRET: ${SESSION_SECRET:-dev-secret-dev-secret-dev-secret}
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      - ../../..:/repo
+      # UID хоста отсутствует в /etc/passwd образа, а Node зовёт os.userInfo()
+      - ../node/passwd:/etc/passwd:ro
+    ports:
+    - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
   postgres:
     image: postgres:18-alpine
     environment:

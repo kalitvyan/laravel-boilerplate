@@ -1,38 +1,76 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
+-include .make.env
+
 COMPOSE := docker compose -f infra/docker/compose/compose.yaml
 
 export HOST_UID := $(shell id -u)
 export HOST_GID := $(shell id -g)
 
+# -T отключает TTY у compose exec в неинтерактивной среде (CI);
+# -it, наоборот, нужен docker run, когда терминал есть
 EXEC_TTY := $(shell [ -t 0 ] || echo -T)
+RUN_TTY  := $(shell [ -t 0 ] && echo -it)
 
 API_EXEC := $(COMPOSE) exec $(EXEC_TTY) api
 API_RUN  := $(COMPOSE) run --rm --no-deps $(EXEC_TTY) api
+WEB_EXEC := $(COMPOSE) exec $(EXEC_TTY) web
+
+NODE_IMAGE ?= node:24-alpine
+NODE_PASSWD := $(CURDIR)/infra/docker/node/passwd
+
+# UID хоста отсутствует в /etc/passwd образа, а Node зовёт os.userInfo()
+$(NODE_PASSWD):
+	@rm -rf $@
+	@mkdir -p $(dir $@)
+	@printf 'root:x:0:0:root:/root:/bin/sh\napp:x:$(HOST_UID):$(HOST_GID):app:/tmp:/bin/sh\n' > $@
+
+# Для команд вне поднятого стека: свежий клон, генерация клиента, CI
+PNPM = docker run --rm $(RUN_TTY) \
+	-u $(HOST_UID):$(HOST_GID) \
+	-e HOME=/tmp \
+	-e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+	-v $(CURDIR):/repo \
+	-v $(NODE_PASSWD):/etc/passwd:ro \
+	-w /repo \
+	$(NODE_IMAGE) corepack pnpm
+
+REDOCLY := docker run --rm \
+	-u $(HOST_UID):$(HOST_GID) \
+	-e HOME=/tmp \
+	-e REDOCLY_TELEMETRY=off \
+	-v $(CURDIR)/docs/api:/spec \
+	-w /spec \
+	redocly/cli:latest
 
 .PHONY: help
 help: ## Show this help
-	@awk 'BEGIN {FS = ":.*## "} /^##@/ {printf "\n\033[1m%s\033[0m\n", substr($$0, 5)} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*## "} /^##@/ {printf "\n\033[1m%s\033[0m\n", substr($$0, 5)} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 ##@ Environment
 
 .PHONY: init
-init: ## First run: env, build, deps, up, migrate
+init: $(NODE_PASSWD) ## First run: env, deps, build, up, migrate
 	@test -f apps/api/.env || cp apps/api/.env.example apps/api/.env
+	@test -f apps/web/.env.local || cp apps/web/.env.example apps/web/.env.local
 	$(COMPOSE) build
 	$(API_RUN) composer install
 	@grep -q '^APP_KEY=base64' apps/api/.env || $(API_RUN) php artisan key:generate
+	$(PNPM) install
 	$(COMPOSE) up -d
 	$(API_EXEC) php artisan migrate --force
 
 .PHONY: up
-up: ## Start stack
+up: $(NODE_PASSWD) ## Start stack
 	$(COMPOSE) up -d
 
 .PHONY: down
 down: ## Stop stack
 	$(COMPOSE) down
+
+.PHONY: restart
+restart: down up ## Recreate containers (picks up .env and compose changes)
 
 .PHONY: destroy
 destroy: ## Stop stack and REMOVE volumes
@@ -53,7 +91,7 @@ logs: ## Logs: make logs s=api
 ##@ API
 
 .PHONY: shell
-shell: ## Shell in running api container
+shell: ## Shell in the api container
 	$(API_EXEC) bash
 
 .PHONY: composer
@@ -72,6 +110,10 @@ migrate: ## Run migrations
 fresh: ## Drop all tables and re-run migrations with seeders
 	$(API_EXEC) php artisan migrate:fresh --seed
 
+.PHONY: psql
+psql: ## psql into the app database
+	$(COMPOSE) exec postgres psql -U app -d app
+
 .PHONY: octane-reload
 octane-reload: ## Reload Octane workers
 	$(API_EXEC) php artisan octane:reload
@@ -81,12 +123,53 @@ horizon-restart: ## Gracefully restart Horizon (after code changes)
 	$(API_EXEC) php artisan horizon:terminate
 
 .PHONY: relay-restart
-relay-restart: ## Restart outbox relay (after code changes)
+relay-restart: ## Restart the outbox relay (after code changes)
 	$(COMPOSE) restart outbox-relay
 
-.PHONY: psql
-psql: ## psql into app database
-	$(COMPOSE) exec postgres psql -U app -d app
+##@ Frontend
+
+.PHONY: pnpm
+pnpm: $(NODE_PASSWD) ## Run pnpm outside the stack: make pnpm c="install"
+	$(PNPM) $(c)
+
+.PHONY: web-shell
+web-shell: ## Shell in the web container
+	$(WEB_EXEC) sh
+
+.PHONY: web-logs
+web-logs: ## Follow web logs
+	$(COMPOSE) logs -f --tail=200 web
+
+.PHONY: shadcn
+shadcn: ## Add shadcn components: make shadcn c="button input"
+	$(WEB_EXEC) pnpm dlx shadcn@latest add $(c)
+
+.PHONY: web-check
+web-check: ## Typecheck and lint the frontend
+	$(WEB_EXEC) pnpm typecheck
+	$(WEB_EXEC) pnpm lint
+
+.PHONY: web-test
+web-test: ## Run frontend tests
+	$(WEB_EXEC) pnpm test
+
+##@ API contract
+
+.PHONY: spec-lint
+spec-lint: ## Lint the OpenAPI spec
+	$(REDOCLY) lint
+
+.PHONY: spec
+spec: spec-lint ## Lint and bundle the spec into docs/api/dist/openapi.yaml
+	$(REDOCLY) bundle main --output dist/openapi.yaml
+
+.PHONY: spec-docs
+spec-docs: spec ## Build static HTML docs into docs/api/dist/index.html
+	$(REDOCLY) build-docs dist/openapi.yaml --output dist/index.html
+
+.PHONY: client
+client: spec $(NODE_PASSWD) ## Regenerate the typed API client from the spec
+	$(PNPM) --filter @laravel-boilerplate/api-client generate
 
 ##@ Quality
 
@@ -115,38 +198,17 @@ deptrac: ## Architecture rules
 	$(API_EXEC) composer deptrac
 
 .PHONY: test
-test: spec ## Tests: make test f="--filter=Health"
+test: spec ## API tests: make test f="--filter=Health"
 	$(API_EXEC) composer test -- $(f)
 
 .PHONY: qa
-qa: spec ## All checks
+qa: spec ## All API checks
 	$(API_EXEC) composer qa
 
-##@ API contract
-
-REDOCLY := docker run --rm \
-	-u $(HOST_UID):$(HOST_GID) \
-	-e HOME=/tmp \
-	-e REDOCLY_TELEMETRY=off \
-	-v $(CURDIR)/docs/api:/spec \
-	-w /spec \
-	redocly/cli:latest
-
-.PHONY: spec-lint
-spec-lint: ## Lint OpenAPI spec
-	$(REDOCLY) lint
-
-.PHONY: spec
-spec: spec-lint ## Lint and bundle spec into docs/api/dist/openapi.yaml
-	$(REDOCLY) bundle main --output dist/openapi.yaml
-
-.PHONY: spec-docs
-spec-docs: spec ## Build static HTML docs into docs/api/dist/index.html
-	$(REDOCLY) build-docs dist/openapi.yaml --output dist/index.html
+.PHONY: check
+check: qa web-check ## All checks, API and frontend
 
 ##@ Production image
-
--include .make.env
 
 REGISTRY ?=
 IMAGE_NAME ?= laravel-boilerplate-api
@@ -159,7 +221,7 @@ API_IMAGE_LATEST := $(if $(REGISTRY),$(REGISTRY)/,)$(IMAGE_NAME):latest
 COMPOSE_PROD := API_IMAGE=$(API_IMAGE_PROD) docker compose -f infra/docker/compose/compose.prod.yaml
 
 .PHONY: prod-image
-prod-image: ## Build production image (REGISTRY=ghcr.io/you to tag for a registry)
+prod-image: ## Build the production image (REGISTRY=ghcr.io/you to tag for a registry)
 	docker build \
 		-f infra/docker/api/Dockerfile \
 		--target prod \
@@ -170,7 +232,7 @@ prod-image: ## Build production image (REGISTRY=ghcr.io/you to tag for a registr
 	@echo "built $(API_IMAGE_PROD)"
 
 .PHONY: prod-image-nocache
-prod-image-nocache: ## Rebuild production image ignoring the layer cache
+prod-image-nocache: ## Rebuild the production image ignoring the layer cache
 	docker build \
 		-f infra/docker/api/Dockerfile \
 		--target prod \
@@ -194,19 +256,19 @@ prod-image-multiarch: ## Build and push a multi-arch image (requires REGISTRY)
 		--push \
 		.
 
+.PHONY: prod-login
+prod-login: ## Log in to GHCR (expects GHCR_TOKEN with write:packages)
+	@test -n "$(GHCR_TOKEN)" || { echo "GHCR_TOKEN is not set"; exit 1; }
+	@echo "$(GHCR_TOKEN)" | docker login ghcr.io -u kalitvyan --password-stdin
+
 .PHONY: prod-push
-prod-push: ## Push image (requires REGISTRY)
+prod-push: ## Push the image (requires REGISTRY)
 	@test -n "$(REGISTRY)" || { echo "REGISTRY is not set: make prod-push REGISTRY=ghcr.io/kalitvyan"; exit 1; }
 	docker push $(API_IMAGE_PROD)
 	docker push $(API_IMAGE_LATEST)
 
-.PHONY: prod-login
-prod-login: ## Log in to GHCR (expects $$GHCR_TOKEN with write:packages)
-	@test -n "$(GHCR_TOKEN)" || { echo "GHCR_TOKEN is not set"; exit 1; }
-	@echo "$(GHCR_TOKEN)" | docker login ghcr.io -u kalitvyan --password-stdin
-
 .PHONY: prod-key
-prod-key: ## Generate APP_KEY for the prod-like stack
+prod-key: ## Generate an APP_KEY for the prod-like stack
 	@docker run --rm $(API_IMAGE_PROD) artisan key:generate --show
 
 .PHONY: prod-up
@@ -214,7 +276,7 @@ prod-up: ## Start the prod-like stack
 	$(COMPOSE_PROD) up -d
 
 .PHONY: prod-down
-prod-down: ## Stop the prod-like stack
+prod-down: ## Stop the prod-like stack and remove volumes
 	$(COMPOSE_PROD) down -v
 
 .PHONY: prod-logs
@@ -224,24 +286,3 @@ prod-logs: ## Logs: make prod-logs s=api
 .PHONY: prod-shell
 prod-shell: ## Shell in the running prod api container
 	$(COMPOSE_PROD) exec api sh
-
-##@ Frontend
-
-NODE_IMAGE ?= node:24-alpine
-
-# corepack уже в образе и запускает pnpm без установки; HOME=/tmp — его кэш
-PNPM = docker run --rm $(TTY) \
-	-u $(HOST_UID):$(HOST_GID) \
-	-e HOME=/tmp \
-	-e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
-	-v $(CURDIR):/repo \
-	-w /repo \
-	$(NODE_IMAGE) corepack pnpm
-
-.PHONY: pnpm
-pnpm: ## Run pnpm: make pnpm c="install"
-	$(PNPM) $(c)
-
-.PHONY: client
-client: spec ## Regenerate the typed API client from the OpenAPI bundle
-	$(PNPM) --filter @laravel-boilerplate/api-client generate

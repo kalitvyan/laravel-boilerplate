@@ -21,3 +21,4 @@ infra/docker/compose/.data/
 
 # Api
 docs/api/dist/
+infra/docker/node/passwd
