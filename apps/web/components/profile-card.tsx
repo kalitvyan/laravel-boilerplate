@@ -8,7 +8,8 @@ export function ProfileCard() {
   const { data: user, isPending, error } = useCurrentUser();
   const logout = useLogout();
 
-  if (isPending) {
+  // Во время выхода данные уже сброшены, а навигация ещё не случилась
+  if (isPending || logout.isPending || logout.isSuccess) {
     return <p className="text-muted-foreground text-sm">Loading…</p>;
   }
 

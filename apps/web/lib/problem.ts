@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { isProblemDetails, isValidationProblem, type ProblemDetails } from "@laravel-boilerplate/api-client";
 
 export interface FieldError {
@@ -38,4 +39,27 @@ export function toApiFailure(value: unknown, status = 500): ApiFailure {
         }))
       : [],
   };
+}
+
+/** Ответ клиенту в том же формате, что отдаёт API: один формат ошибок на всё приложение */
+export function problemResponse(failure: ApiFailure): NextResponse {
+  return NextResponse.json(
+    {
+      type: "about:blank",
+      title: failure.message,
+      status: failure.status,
+      detail: failure.message,
+      code: failure.code,
+      ...(failure.fieldErrors.length > 0
+        ? {
+            errors: failure.fieldErrors.map((error) => ({
+              pointer: `/${error.field}`,
+              code: failure.code,
+              message: error.message,
+            })),
+          }
+        : {}),
+    },
+    { status: failure.status, headers: { "content-type": "application/problem+json" } },
+  );
 }

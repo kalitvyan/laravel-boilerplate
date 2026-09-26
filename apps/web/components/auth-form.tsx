@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { ApiError, bff } from "@/lib/http";
-import { credentialsSchema, type Credentials } from "@/lib/schemas";
+import { loginSchema, registerSchema, type Credentials } from "@/lib/schemas";
 
 interface AuthFormProps {
   mode: "login" | "register";
@@ -22,7 +22,7 @@ export function AuthForm({ mode, title, description, submitLabel }: AuthFormProp
   const searchParams = useSearchParams();
 
   const form = useForm<Credentials>({
-    resolver: zodResolver(credentialsSchema),
+    resolver: zodResolver(mode === "login" ? loginSchema : registerSchema),
     defaultValues: { email: "", password: "" },
   });
 

@@ -20,8 +20,12 @@ export function useLogout() {
 
   return useMutation({
     mutationFn: () => bff<void>("auth/logout", { method: "POST" }),
-    onSuccess: () => {
-      queryClient.clear();
+    onSuccess: async () => {
+      // Отменяем активные запросы и убираем данные до навигации:
+      // иначе useCurrentUser успеет получить 401 и показать ошибку
+      await queryClient.cancelQueries({ queryKey: currentUserKey });
+      queryClient.removeQueries({ queryKey: currentUserKey });
+
       router.replace("/login");
       router.refresh();
     },
