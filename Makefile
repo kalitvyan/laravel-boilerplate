@@ -224,3 +224,24 @@ prod-logs: ## Logs: make prod-logs s=api
 .PHONY: prod-shell
 prod-shell: ## Shell in the running prod api container
 	$(COMPOSE_PROD) exec api sh
+
+##@ Frontend
+
+NODE_IMAGE ?= node:24-alpine
+
+# corepack уже в образе и запускает pnpm без установки; HOME=/tmp — его кэш
+PNPM = docker run --rm $(TTY) \
+	-u $(HOST_UID):$(HOST_GID) \
+	-e HOME=/tmp \
+	-e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+	-v $(CURDIR):/repo \
+	-w /repo \
+	$(NODE_IMAGE) corepack pnpm
+
+.PHONY: pnpm
+pnpm: ## Run pnpm: make pnpm c="install"
+	$(PNPM) $(c)
+
+.PHONY: client
+client: spec ## Regenerate the typed API client from the OpenAPI bundle
+	$(PNPM) --filter @laravel-boilerplate/api-client generate

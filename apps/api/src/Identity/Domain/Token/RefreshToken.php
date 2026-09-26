@@ -45,9 +45,14 @@ final class RefreshToken extends AggregateRoot
         return new self($id, $familyId, $userId, $hash, $expiresAt, $createdAt, $usedAt, $revokedAt);
     }
 
+    public function isExpired(DateTimeImmutable $now): bool
+    {
+        return $this->expiresAt <= $now;
+    }
+
     public function isUsable(DateTimeImmutable $now): bool
     {
-        return ! $this->usedAt instanceof DateTimeImmutable && ! $this->revokedAt instanceof DateTimeImmutable && $this->expiresAt > $now;
+        return ! $this->usedAt instanceof DateTimeImmutable && ! $this->revokedAt instanceof DateTimeImmutable && ! $this->isExpired($now);
     }
 
     /**

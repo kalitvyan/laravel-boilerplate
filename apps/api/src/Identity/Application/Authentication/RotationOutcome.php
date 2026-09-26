@@ -18,16 +18,17 @@ final readonly class RotationOutcome
         public ?TokenFamilyId $compromisedFamily,
         public ?UserId $compromisedUser,
         public bool $revokeAccessTokens,
+        public bool $viaGrace,
     ) {}
 
-    public static function rotated(SessionTokens $tokens): self
+    public static function rotated(SessionTokens $tokens, bool $viaGrace = false): self
     {
-        return new self($tokens, null, null, false);
+        return new self($tokens, null, null, false, $viaGrace);
     }
 
     public static function invalid(): self
     {
-        return new self(null, null, null, false);
+        return new self(null, null, null, false, false);
     }
 
     public static function compromised(
@@ -35,6 +36,6 @@ final readonly class RotationOutcome
         UserId $userId,
         bool $revokeAccessTokens = true,
     ): self {
-        return new self(null, $familyId, $userId, $revokeAccessTokens);
+        return new self(null, $familyId, $userId, $revokeAccessTokens, false);
     }
 }

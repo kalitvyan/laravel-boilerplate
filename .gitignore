@@ -14,6 +14,7 @@ Thumbs.db
 # JS
 node_modules/
 .pnpm-store/
+packages/api-client/src/schema.d.ts
 
 # Local infra data
 infra/docker/compose/.data/

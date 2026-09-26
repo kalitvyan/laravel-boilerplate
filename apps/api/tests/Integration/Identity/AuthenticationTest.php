@@ -80,6 +80,9 @@ it('refuses to reuse a rotated token and kills the whole family', function (): v
     $first = ($this->logIn)(new LogIn('jane@example.com', $this->password));
     $second = ($this->refresh)($first->refreshToken);
 
+    // Выходим за окно грейса: повтор больше не считается гонкой
+    DB::table('identity.refresh_tokens')->whereNotNull('used_at')->update(['used_at' => now()->subMinute()]);
+
     expect(fn () => ($this->refresh)($first->refreshToken))->toThrow(InvalidRefreshToken::class);
 
     // Утечка обнаружена: и новый refresh, и все access-токены пользователя недействительны
@@ -123,12 +126,36 @@ it('prunes long-expired tokens only', function (): void {
     expect(DB::table('identity.refresh_tokens')->count())->toBe(0)
         ->and($tokens->refreshToken)->not->toBeEmpty();
 });
-it('persists family revocation even though refresh fails', function (): void {
+
+it('treats a reuse within the grace window as a race', function (): void {
+    $first = ($this->logIn)(new LogIn('jane@example.com', $this->password));
+
+    $second = ($this->refresh)($first->refreshToken);
+    $third = ($this->refresh)($first->refreshToken);
+
+    // Оба вызова успешны, семья жива, сессия продолжается
+    expect($third->refreshToken)->not->toBe($second->refreshToken)
+        ->and(DB::table('identity.refresh_tokens')->whereNotNull('revoked_at')->count())->toBe(0)
+        ->and(DB::table('identity.refresh_tokens')->distinct()->pluck('family_id'))->toHaveCount(1);
+});
+
+it('treats a reuse after the grace window as a leak', function (): void {
     $first = ($this->logIn)(new LogIn('jane@example.com', $this->password));
     ($this->refresh)($first->refreshToken);
 
+    // Окно истекло
+    DB::table('identity.refresh_tokens')->update(['used_at' => now()->subMinute()]);
+
     expect(fn () => ($this->refresh)($first->refreshToken))->toThrow(InvalidRefreshToken::class);
 
-    // Ключевая проверка: откат транзакции сценария не должен отменить отзыв
     expect(DB::table('identity.refresh_tokens')->whereNull('revoked_at')->count())->toBe(0);
+});
+
+it('does not resurrect a revoked family within the grace window', function (): void {
+    $first = ($this->logIn)(new LogIn('jane@example.com', $this->password));
+    $second = ($this->refresh)($first->refreshToken);
+
+    ($this->logOut)($second->refreshToken, null);
+
+    expect(fn () => ($this->refresh)($first->refreshToken))->toThrow(InvalidRefreshToken::class);
 });

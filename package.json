@@ -1,0 +1,11 @@
+{
+  "name": "laravel-boilerplate",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "client:generate": "pnpm --filter @laravel-boilerplate/api-client generate",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "build": "pnpm -r build"
+  }
+}

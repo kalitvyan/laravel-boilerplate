@@ -90,6 +90,12 @@ it('rotates the session on refresh and invalidates the old token', function (): 
 
     expect($second['refreshToken'])->not->toBe($first['refreshToken']);
 
+    // Повтор в пределах окна грейса — законная гонка двух вкладок
+    $this->postJson('/api/v1/auth/refresh', ['refreshToken' => $first['refreshToken']])->assertOk();
+
+    // За пределами окна тот же токен означает утечку
+    DB::table('identity.refresh_tokens')->whereNotNull('used_at')->update(['used_at' => now()->subMinute()]);
+
     $this->postJson('/api/v1/auth/refresh', ['refreshToken' => $first['refreshToken']])
         ->assertUnauthorized()
         ->assertJsonPath('code', 'identity.invalid_refresh_token');

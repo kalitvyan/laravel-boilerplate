@@ -21,6 +21,7 @@ use LaravelBoilerplate\Identity\Application\Access\BlockUserHandler;
 use LaravelBoilerplate\Identity\Application\Access\RevokeTokensOnUserBlocked;
 use LaravelBoilerplate\Identity\Application\Authentication\InvalidCredentials;
 use LaravelBoilerplate\Identity\Application\Authentication\InvalidRefreshToken;
+use LaravelBoilerplate\Identity\Application\Authentication\RefreshSessionService;
 use LaravelBoilerplate\Identity\Application\Authentication\SessionIssuer;
 use LaravelBoilerplate\Identity\Application\Authentication\UserIsBlocked;
 use LaravelBoilerplate\Identity\Application\Event\UserBlockedTranslator;
@@ -61,6 +62,7 @@ use LaravelBoilerplate\Identity\Infrastructure\Sanctum\SanctumAccessTokenIssuer;
 use LaravelBoilerplate\Identity\Infrastructure\Sanctum\SanctumAccessTokenRevoker;
 use LaravelBoilerplate\Identity\Infrastructure\Security\RandomSecretGenerator;
 use LaravelBoilerplate\Identity\Infrastructure\Security\Sha256SecretHasher;
+use LaravelBoilerplate\Shared\Application\Transaction\TransactionManager;
 use LaravelBoilerplate\Shared\Infrastructure\Bus\CommandHandlerMap;
 use LaravelBoilerplate\Shared\Infrastructure\Bus\QueryHandlerMap;
 use LaravelBoilerplate\Shared\Infrastructure\Event\DomainEventListenerMap;
@@ -69,6 +71,7 @@ use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemDefinition;
 use LaravelBoilerplate\Shared\Presentation\Http\Problem\ProblemMap;
 use LogicException;
 use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
 
 final class IdentityServiceProvider extends ServiceProvider
 {
@@ -141,6 +144,18 @@ final class IdentityServiceProvider extends ServiceProvider
             UserRegistered::class => UserRegisteredTranslator::class,
             UserBlocked::class => UserBlockedTranslator::class,
         ]));
+
+        $this->app->bind(RefreshSessionService::class, static fn (Application $app): RefreshSessionService => new RefreshSessionService(
+            $app->make(RefreshTokenRepository::class),
+            $app->make(UserRepository::class),
+            $app->make(AccessTokenRevoker::class),
+            $app->make(SessionIssuer::class),
+            $app->make(SecretHasher::class),
+            $app->make(TransactionManager::class),
+            $app->make(ClockInterface::class),
+            $app->make(LoggerInterface::class),
+            new DateInterval(sprintf('PT%dS', config()->integer('identity.tokens.refresh_grace_seconds'))),
+        ));
     }
 
     public function boot(): void
