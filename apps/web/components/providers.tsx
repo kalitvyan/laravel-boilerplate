@@ -1,13 +1,10 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { ApiError } from "@/lib/http";
 
 export function Providers({ children }: { children: ReactNode }) {
-  const router = useRouter();
-
   const [queryClient] = useState(
     () =>
       new QueryClient({

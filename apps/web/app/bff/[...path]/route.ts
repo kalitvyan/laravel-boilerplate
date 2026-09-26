@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { applySession, buildClientResponse, proxyToApi, unauthorized } from "@/lib/proxy";
 import { readSession } from "@/lib/session";
 

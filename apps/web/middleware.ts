@@ -5,7 +5,7 @@ const SESSION_COOKIE = process.env.SESSION_COOKIE_NAME ?? "lb_session";
 const PUBLIC_PATHS = ["/login", "/register"];
 
 export function middleware(request: NextRequest) {
-  const { pathname, origin } = request.nextUrl;
+  const { pathname } = request.nextUrl;
 
   // CSRF: браузер всегда шлёт Origin для небезопасных методов.
   // Сравниваем с Host из этого же запроса, а не с nextUrl.origin:
