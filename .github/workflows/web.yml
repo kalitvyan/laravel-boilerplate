@@ -2,7 +2,7 @@ name: Web
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - "apps/web/**"
       - "packages/**"
