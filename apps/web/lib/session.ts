@@ -16,19 +16,21 @@ const ALG = "dir";
 const ENC = "A256GCM";
 
 /** A256GCM требует ровно 32 байта ключа */
-const key = new TextEncoder().encode(env.SESSION_SECRET).slice(0, 32);
+function encryptionKey(): Uint8Array {
+  return new TextEncoder().encode(env.SESSION_SECRET).slice(0, 32);
+}
 
 export async function encryptSession(session: Session): Promise<string> {
   return new EncryptJWT({ ...session })
     .setProtectedHeader({ alg: ALG, enc: ENC })
     .setIssuedAt()
     .setExpirationTime(new Date(session.refreshExpiresAt))
-    .encrypt(key);
+    .encrypt(encryptionKey());
 }
 
 export async function decryptSession(value: string): Promise<Session | null> {
   try {
-    const { payload } = await jwtDecrypt(value, key);
+    const { payload } = await jwtDecrypt(value, encryptionKey());
 
     return toSession(payload);
   } catch {
@@ -48,7 +50,7 @@ export async function writeSession(session: Session): Promise<void> {
 
   store.set(env.SESSION_COOKIE_NAME, await encryptSession(session), {
     httpOnly: true,
-    secure: isProduction,
+    secure: isProduction(),
     sameSite: "lax",
     path: "/",
     expires: new Date(session.refreshExpiresAt),

@@ -102,6 +102,22 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  web:
+    image: ${WEB_IMAGE:-laravel-boilerplate-web:latest}
+    environment:
+      API_URL: http://api:8000
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET, e.g. openssl rand -base64 32}
+      SESSION_COOKIE_NAME: lb_session
+    ports:
+      - "${PROD_WEB_PORT:-8081}:3000"
+    read_only: true
+    tmpfs:
+      - /tmp:uid=10001,gid=10001,mode=1777
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
   postgres:
     image: postgres:18-alpine
     environment:

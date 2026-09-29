@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const { data, error, response } = await api.POST("/api/v1/auth/login", { body: payload });
+  const { data, error, response } = await api().POST("/api/v1/auth/login", { body: payload });
 
   if (error || !data) {
     return problemResponse(toApiFailure(error, response.status));

@@ -218,7 +218,11 @@ PLATFORM ?= linux/amd64
 API_IMAGE_PROD := $(if $(REGISTRY),$(REGISTRY)/,)$(IMAGE_NAME):$(TAG)
 API_IMAGE_LATEST := $(if $(REGISTRY),$(REGISTRY)/,)$(IMAGE_NAME):latest
 
-COMPOSE_PROD := API_IMAGE=$(API_IMAGE_PROD) docker compose -f infra/docker/compose/compose.prod.yaml
+WEB_IMAGE_NAME ?= laravel-boilerplate-web
+WEB_IMAGE_PROD := $(if $(REGISTRY),$(REGISTRY)/,)$(WEB_IMAGE_NAME):$(TAG)
+WEB_IMAGE_LATEST := $(if $(REGISTRY),$(REGISTRY)/,)$(WEB_IMAGE_NAME):latest
+
+COMPOSE_PROD := API_IMAGE=$(API_IMAGE_PROD) WEB_IMAGE=$(WEB_IMAGE_PROD) docker compose -f infra/docker/compose/compose.prod.yaml
 
 .PHONY: prod-image
 prod-image: ## Build the production image (REGISTRY=ghcr.io/you to tag for a registry)
@@ -230,6 +234,20 @@ prod-image: ## Build the production image (REGISTRY=ghcr.io/you to tag for a reg
 		-t $(API_IMAGE_LATEST) \
 		.
 	@echo "built $(API_IMAGE_PROD)"
+
+.PHONY: prod-image-web
+prod-image-web: spec ## Build the production web image
+	docker build \
+		-f infra/docker/web/Dockerfile \
+		--target prod \
+		--platform $(PLATFORM) \
+		-t $(WEB_IMAGE_PROD) \
+		-t $(WEB_IMAGE_LATEST) \
+		.
+	@echo "built $(WEB_IMAGE_PROD)"
+
+.PHONY: prod-images
+prod-images: prod-image prod-image-web ## Build both production images
 
 .PHONY: prod-image-nocache
 prod-image-nocache: ## Rebuild the production image ignoring the layer cache
@@ -262,10 +280,12 @@ prod-login: ## Log in to GHCR (expects GHCR_TOKEN with write:packages)
 	@echo "$(GHCR_TOKEN)" | docker login ghcr.io -u kalitvyan --password-stdin
 
 .PHONY: prod-push
-prod-push: ## Push the image (requires REGISTRY)
+prod-push: ## Push images (requires REGISTRY)
 	@test -n "$(REGISTRY)" || { echo "REGISTRY is not set: make prod-push REGISTRY=ghcr.io/kalitvyan"; exit 1; }
 	docker push $(API_IMAGE_PROD)
 	docker push $(API_IMAGE_LATEST)
+	docker push $(WEB_IMAGE_PROD)
+	docker push $(WEB_IMAGE_LATEST)
 
 .PHONY: prod-key
 prod-key: ## Generate an APP_KEY for the prod-like stack

@@ -21,3 +21,4 @@ apps/api/.deptrac.*.cache
 apps/web/.next
 docs/api/dist
 infra/docker/compose/.data
+!docs/api/dist/openapi.yaml

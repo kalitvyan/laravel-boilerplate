@@ -17,13 +17,13 @@ export async function POST(request: Request) {
     });
   }
 
-  const registered = await api.POST("/api/v1/users", { body: payload });
+  const registered = await api().POST("/api/v1/users", { body: payload });
 
   if (registered.error || !registered.data) {
     return problemResponse(toApiFailure(registered.error, registered.response.status));
   }
 
-  const loggedIn = await api.POST("/api/v1/auth/login", { body: payload });
+  const loggedIn = await api().POST("/api/v1/auth/login", { body: payload });
 
   if (loggedIn.error || !loggedIn.data) {
     // Аккаунт создан, но автоматический вход не удался: пусть залогинится вручную

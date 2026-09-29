@@ -9,7 +9,7 @@ export async function POST() {
 
   if (session) {
     // Ошибку игнорируем: локальную сессию сбрасываем в любом случае
-    await api
+    await api()
       .POST("/api/v1/auth/logout", {
         body: { refreshToken: session.refreshToken },
         headers: { authorization: `Bearer ${session.accessToken}` },

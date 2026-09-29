@@ -33,7 +33,7 @@ export async function refreshSession(session: Session): Promise<Session | null> 
 }
 
 async function performRefresh(session: Session): Promise<Session | null> {
-  const { data, error } = await api.POST("/api/v1/auth/refresh", {
+  const { data, error } = await api().POST("/api/v1/auth/refresh", {
     body: { refreshToken: session.refreshToken },
   });
 
