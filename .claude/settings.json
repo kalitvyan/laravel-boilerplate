@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(make *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git switch *)",
+      "Bash(git branch*)",
+      "Bash(git stash*)",
+      "Bash(docker compose -f infra/docker/compose/compose.yaml ps*)",
+      "Bash(docker compose -f infra/docker/compose/compose.yaml logs *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh run *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(make destroy*)",
+      "Bash(make prod-*)"
+    ],
+    "deny": [
+      "Read(./apps/api/.env)",
+      "Read(./apps/web/.env.local)",
+      "Read(./.make.env)",
+      "Read(./infra/docker/compose/.env)",
+
+      "Edit(./docs/api/dist/**)",
+      "Edit(./packages/api-client/src/schema.d.ts)",
+      "Edit(./apps/api/vendor/**)",
+      "Edit(**/node_modules/**)",
+      "Edit(./pnpm-lock.yaml)",
+      "Edit(./apps/api/composer.lock)",
+
+      "Bash(php *)",
+      "Bash(composer *)",
+      "Bash(node *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(pnpm *)",
+
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(docker push *)",
+      "Bash(sudo *)",
+      "Bash(rm -rf *)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-start.sh" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/protect-migrations.sh" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format-php.sh" }
+        ]
+      }
+    ]
+  }
+}

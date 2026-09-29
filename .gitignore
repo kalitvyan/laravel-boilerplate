@@ -22,3 +22,6 @@ infra/docker/compose/.data/
 docs/api/dist/
 infra/docker/node/passwd
 infra/load/results/
+
+# Ai
+.claude/settings.local.json
