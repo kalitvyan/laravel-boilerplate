@@ -48,6 +48,11 @@ REDOCLY := docker run --rm \
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "} /^##@/ {printf "\n\033[1m%s\033[0m\n", substr($$0, 5)} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
+.PHONY: hooks
+hooks: ## Install git hooks
+	git config core.hooksPath .githooks
+	@echo "hooks installed"
+
 ##@ Environment
 
 .PHONY: init

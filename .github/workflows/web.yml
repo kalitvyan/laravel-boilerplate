@@ -1,0 +1,62 @@
+name: Web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "packages/**"
+      - "docs/api/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "infra/docker/web/**"
+      - ".github/workflows/web.yml"
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - "packages/**"
+      - "docs/api/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "infra/docker/web/**"
+      - ".github/workflows/web.yml"
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Typecheck, lint and tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Bundle the OpenAPI spec
+        run: |
+          docker run --rm -v "$PWD/docs/api":/spec -w /spec \
+            -e REDOCLY_TELEMETRY=off redocly/cli:latest bundle main --output dist/openapi.yaml
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate the API client
+        run: pnpm --filter @laravel-boilerplate/api-client generate
+
+      # Клиент производный от спеки: расхождение означает, что спеку поменяли,
+      # а клиент не перегенерировали локально
+      - name: Check the generated client is up to date
+        run: git diff --exit-code -- packages/api-client
+
+      - run: pnpm --filter @laravel-boilerplate/api-client typecheck
+      - run: pnpm --filter @laravel-boilerplate/web typecheck
+      - run: pnpm --filter @laravel-boilerplate/web lint
+      - run: pnpm --filter @laravel-boilerplate/web test
+      - run: pnpm --filter @laravel-boilerplate/web build

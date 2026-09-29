@@ -1,0 +1,139 @@
+name: API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/api/**"
+      - "docs/api/**"
+      - "infra/docker/api/**"
+      - ".github/workflows/api.yml"
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - "docs/api/**"
+      - "infra/docker/api/**"
+      - ".github/workflows/api.yml"
+
+concurrency:
+  group: api-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  spec:
+    name: OpenAPI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Lint and bundle the spec
+        run: |
+          docker run --rm -v "$PWD/docs/api":/spec -w /spec \
+            -e REDOCLY_TELEMETRY=off redocly/cli:latest bundle main --output dist/openapi.yaml
+
+      # Бандл нужен контрактным тестам в следующем джобе
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openapi-bundle
+          path: docs/api/dist/openapi.yaml
+          retention-days: 1
+
+  quality:
+    name: Static analysis and tests
+    runs-on: ubuntu-latest
+    needs: spec
+
+    # PHP 8.5 на раннере нет: работаем в том же образе, что и локально
+    container:
+      image: dunglas/frankenphp:1.12-php8.5-trixie
+      options: --user root
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app_test
+        options: >-
+          --health-cmd "pg_isready -U app -d app_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis-state:
+        image: redis:8-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-retries 10
+
+      redis-cache:
+        image: redis:8-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-retries 10
+
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_DATABASE: app_test
+      DB_USERNAME: app
+      DB_PASSWORD: app
+      DB_SEARCH_PATH: public,identity
+      REDIS_HOST: redis-state
+      REDIS_CACHE_HOST: redis-cache
+      OPENAPI_SPEC_PATH: ${{ github.workspace }}/docs/api/dist/openapi.yaml
+
+    defaults:
+      run:
+        working-directory: apps/api
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: openapi-bundle
+          path: docs/api/dist
+
+      - name: Install system dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git unzip
+          install-php-extensions pdo_pgsql redis intl bcmath pcntl zip @composer
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ hashFiles('apps/api/composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: PSR-4 compliance
+        run: composer autoload-check
+
+      - name: Code style
+        run: composer lint
+
+      - name: Rector
+        run: composer rector
+
+      - name: Static analysis
+        run: composer stan
+
+      - name: Architecture rules
+        run: composer deptrac
+
+      - name: Tests
+        run: composer test

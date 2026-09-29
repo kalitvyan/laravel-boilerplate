@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+# Только изменённые файлы: полный прогон — работа CI
+staged_php=$(git diff --cached --name-only --diff-filter=ACM -- 'apps/api/*.php')
+
+if [ -n "$staged_php" ]; then
+  docker compose -f infra/docker/compose/compose.yaml exec -T api ./vendor/bin/pint --dirty --test \
+    || { echo "Run 'make fix' before committing"; exit 1; }
+fi

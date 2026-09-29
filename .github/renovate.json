@@ -1,0 +1,24 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard"],
+  "timezone": "Asia/Novosibirsk",
+  "schedule": ["before 6am on monday"],
+  "packageRules": [
+    {
+      "description": "Патчи и минорные версии сливаются автоматически после зелёного CI",
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "description": "Мажорные версии фреймворков смотрим руками",
+      "matchPackageNames": ["laravel/framework", "next", "react", "react-dom"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    },
+    {
+      "description": "Базовые образы обновляем группой",
+      "matchFileNames": ["infra/docker/**/Dockerfile", "infra/docker/compose/*.yaml"],
+      "groupName": "container images"
+    }
+  ]
+}
