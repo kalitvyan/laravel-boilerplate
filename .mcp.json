@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "laravel-boost": {
+      "command": "sh",
+      "args": [
+        "-c",
+        "cd \"$(git rev-parse --show-toplevel)\" && exec docker compose -f infra/docker/compose/compose.yaml exec -T api php artisan boost:mcp"
+      ]
+    }
+  }
+}

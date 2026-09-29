@@ -1,7 +1,9 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "enabledMcpjsonServers": ["laravel-boost"],
   "permissions": {
     "allow": [
+      "mcp__laravel-boost__*",
       "Bash(make *)",
       "Bash(git status*)",
       "Bash(git diff*)",
@@ -19,6 +21,7 @@
       "Bash(gh run *)"
     ],
     "ask": [
+      "mcp__laravel-boost__tinker",
       "Bash(git push *)",
       "Bash(make destroy*)",
       "Bash(make prod-*)"
