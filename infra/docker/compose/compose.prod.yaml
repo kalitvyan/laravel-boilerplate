@@ -37,10 +37,7 @@ x-api: &api
     AWS_PUBLIC_ENDPOINT: http://127.0.0.1:9010
     AWS_USE_PATH_STYLE_ENDPOINT: "true"
 
-    OTEL_ENABLED: "false"
-    OTEL_METRICS_ENABLED: "false"
-
-    OCTANE_WORKERS: "2"
+    OCTANE_WORKERS: "8"
   # Прод-профиль: non-root, только чтение, запись — в примонтированные tmpfs
   read_only: true
   tmpfs:

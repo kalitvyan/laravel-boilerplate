@@ -311,3 +311,9 @@ prod-logs: ## Logs: make prod-logs s=api
 .PHONY: prod-shell
 prod-shell: ## Shell in the running prod api container
 	$(COMPOSE_PROD) exec api sh
+
+##@ Load testing
+
+.PHONY: load
+load: ## Run load tests against the prod-like stack: make load LABEL=baseline
+	./infra/load/run.sh
