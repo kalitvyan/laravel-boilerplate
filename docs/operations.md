@@ -155,3 +155,46 @@ max(app_outbox_lag_seconds)
 - S3 — файлы.
 
 Redis-кэш восстановления не требует.
+
+## Подключение наблюдаемости в проде
+
+Приложение отправляет трассы и метрики по OTLP через HTTP+JSON. Своего
+коллектора оно не поднимает и не требует — достаточно указать адрес:
+
+```dotenv
+OTEL_ENABLED=true
+OTEL_METRICS_ENABLED=true
+OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+OTEL_SERVICE_NAME=laravel-boilerplate-api
+OTEL_SERVICE_VERSION=<тег образа>
+OTEL_TRACES_SAMPLER_ARG=0.1
+```
+
+`OTEL_TRACES_SAMPLER_ARG` под нагрузкой обязательно снижается: при значении
+1.0 каждый запрос порождает трассу, и хранилище растёт быстро. Решение о
+сэмплировании принимается на корне трассы и наследуется вложенными спанами,
+поэтому цепочка запрос → команда → консьюмер не рвётся.
+
+### Варианты приёмника
+
+**Собственный OpenTelemetry Collector** в кластере, за ним — Tempo, Prometheus
+и Loki. Коллектор снимает с приложения заботу о ретраях и буферизации и
+позволяет менять бэкенд, не трогая приложение.
+
+**Управляемый сервис.** Grafana Cloud и большинство облачных провайдеров
+принимают OTLP напрямую, обычно требуя заголовок с ключом. Тогда понадобится
+`OTEL_EXPORTER_OTLP_HEADERS`.
+
+### Что учесть
+
+Метрики экспортируются с cumulative temporality. Prometheus принимает такие
+точки нативно; приёмники, ожидающие delta, потребуют конвертации в
+коллекторе — см. [ADR 0010](adr/0010-otlp-cumulative-temporality.md).
+
+Дашборд из `infra/observability/grafana/dashboards/api.json` переносится в
+любую инсталляцию Grafana импортом: Dashboards → New → Import → Upload JSON.
+Он рассчитан на источник данных Prometheus и не содержит привязки к
+конкретному окружению.
+
+Правила оповещения — в `infra/observability/alerts.yaml`, формат Prometheus.
+Пороги в них стартовые и подбираются под реальный трафик.
