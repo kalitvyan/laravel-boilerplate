@@ -8,7 +8,6 @@ use Closure;
 use Illuminate\Http\Request;
 use LaravelBoilerplate\Identity\Application\Port\PrincipalFactory;
 use LaravelBoilerplate\Identity\Domain\User\UserId;
-use LaravelBoilerplate\Identity\Infrastructure\Persistence\Eloquent\PersonalAccessToken;
 use LaravelBoilerplate\Identity\Infrastructure\Persistence\Eloquent\UserModel;
 use LaravelBoilerplate\Shared\Application\Bus\ActorContext;
 use LaravelBoilerplate\Shared\Application\Exception\Unauthenticated;
@@ -33,11 +32,13 @@ final readonly class ResolvePrincipal
             throw new Unauthenticated('Authentication required');
         }
 
-        // Токен ищем сами, а не через currentAccessToken(): так тип известен точно,
-        // а запрос уже прогрет кешем модели из guard'а
-        $bearer = $request->bearerToken();
-        $token = $bearer !== null ? PersonalAccessToken::findToken($bearer) : null;
-        $tokenId = $token?->getKey();
+        // Токен уже загружен guard'ом: повторный поиск по базе был бы лишним запросом.
+        // PHPDoc Sanctum обещает PersonalAccessToken, но в cookie-режиме это TransientToken,
+        // у которого нет ни id, ни abilities
+        $token = $user->currentAccessToken();
+
+        /** @phpstan-ignore-next-line nullsafe.neverNull */
+        $tokenId = $token?->getAttribute('id');
 
         $request->attributes->set(ActorContext::ATTRIBUTE, $this->principals->forUser(
             UserId::fromString($user->id),
@@ -49,13 +50,14 @@ final readonly class ResolvePrincipal
     }
 
     /**
-     * Нет токена — значит, аутентификация прошла иначе (cookie-режим Sanctum),
-     * и сужать права нечем.
+     * TransientToken (cookie-режим Sanctum) не имеет abilities: это полный доступ.
+     *
      *
      * @return list<string>
      */
-    private function abilitiesOf(?PersonalAccessToken $token): array
+    private function abilitiesOf(?object $token): array
     {
+        /** @phpstan-ignore-next-line nullsafe.neverNull */
         $abilities = $token?->getAttribute('abilities');
 
         if (! is_array($abilities)) {
