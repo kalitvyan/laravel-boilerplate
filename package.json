@@ -2,6 +2,7 @@
   "name": "laravel-boilerplate",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@12.6.0",
   "scripts": {
     "client:generate": "pnpm --filter @laravel-boilerplate/api-client generate",
     "lint": "pnpm -r lint",
