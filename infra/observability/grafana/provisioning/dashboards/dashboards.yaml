@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: laravel-boilerplate
+    type: file
+    folder: Laravel Boilerplate
+    updateIntervalSeconds: 10
+    # Правки через UI не сохраняются в файл: дашборд редактируется в репозитории
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/provisioning/dashboards-data
+      foldersFromFilesStructure: false

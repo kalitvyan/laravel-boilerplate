@@ -195,6 +195,9 @@ services:
       - "${GRAFANA_PORT:-3030}:3000" # 3000 оставляем Next.js
       - "4317:4317"
       - "4318:4318"
+    volumes:
+      - ../../observability/grafana/provisioning/dashboards:/otel-lgtm/grafana/conf/provisioning/dashboards:ro
+      - ../../observability/grafana/dashboards:/etc/grafana/provisioning/dashboards-data:ro
     restart: unless-stopped
 
 volumes:
