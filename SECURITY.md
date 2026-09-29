@@ -1,8 +1,8 @@
-# Security Policy
+# Политика безопасности
 
-Please do not report security vulnerabilities through public GitHub issues.
+Не сообщайте об уязвимостях через публичные issue.
 
-Use GitHub private vulnerability reporting:
-Security → Advisories → Report a vulnerability.
+Используйте приватные обращения GitHub: вкладка Security → Advisories →
+Report a vulnerability.
 
-We will acknowledge the report within 72 hours.
+Мы подтвердим получение в течение 72 часов.

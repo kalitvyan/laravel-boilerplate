@@ -1,37 +1,42 @@
 # Laravel Boilerplate
 
-> 🚧 Work in progress
+> 🚧 В разработке
 
-Production-oriented API boilerplate built around **DDD**, **Clean Architecture**
-and **event-driven design**.
+Заготовка API-проекта, построенная вокруг предметно-ориентированного
+проектирования, чистой архитектуры и событийного взаимодействия.
 
-**Repository:** https://github.com/kalitvyan/laravel-boilerplate
+## Стек
 
-## Stack
-
-| Layer | Technology |
+| Слой | Технологии |
 |---|---|
-| API | PHP 8.5, Laravel 13, Octane + FrankenPHP (worker mode) |
-| Architecture | Modular monolith, bounded contexts, CQRS-lite, transactional outbox |
-| Auth | Laravel Sanctum (opaque tokens) behind ports, Next.js as BFF |
-| Database | PostgreSQL 18 (schema per bounded context) |
-| Redis | `redis-state` (queues, Horizon, locks, rate limits) and `redis-cache` |
-| Queues | Laravel Horizon |
-| Storage | S3-compatible (RustFS locally, any S3 provider in production) |
-| API contract | OpenAPI (spec-first), RFC 9457 Problem Details |
-| Observability | OpenTelemetry, Grafana LGTM locally |
-| Frontend | Next.js, React 19, Tailwind CSS 4 *(planned)* |
-| Quality | Pest, PHPStan (level max), deptrac, Rector, Pint |
+| API | PHP 8.5, Laravel 13, Octane + FrankenPHP в worker mode |
+| Архитектура | модульный монолит, ограниченные контексты, CQRS-lite, transactional outbox |
+| Аутентификация | Laravel Sanctum за портами, Next.js в роли BFF |
+| База данных | PostgreSQL 18, схема на контекст |
+| Redis | отдельные инстансы для состояния и для кэша |
+| Очереди | Laravel Horizon |
+| Хранилище | S3-совместимое: RustFS локально, любой провайдер в проде |
+| Контракт | OpenAPI (spec-first), ошибки по RFC 9457 |
+| Наблюдаемость | OpenTelemetry: трассы и метрики, Grafana LGTM локально |
+| Frontend | Next.js, React 19, Tailwind CSS 4, shadcn/ui |
+| Качество | Pest, PHPStan (максимальный уровень), deptrac, Rector, Pint |
 
-## Requirements
+## Что внутри
 
-- Docker with Compose v2
-- GNU Make
-- macOS or Linux (Windows via WSL2)
+- Границы контекстов, проверяемые автоматически: правило зависимостей между
+  слоями и изоляция контекстов контролируются deptrac.
+- Шина команд с транзакциями, авторизацией и наблюдаемостью.
+- Transactional outbox: события публикуются атомарно с изменением состояния,
+  обработка идемпотентна за счёт inbox.
+- Контекст Identity: регистрация, вход, ротация refresh-токенов с
+  обнаружением повторного использования, роли и права.
+- Спецификация API как источник истины: каждый вызов в тестах проверяется
+  против неё, типизированный клиент генерируется автоматически.
+- Сквозная трассировка от браузера до обработчика очереди.
+- Образы, готовые к Kubernetes: непривилегированный пользователь, read-only
+  файловая система, корректное завершение, health-эндпоинты.
 
-No local PHP, Composer or Node.js is required.
-
-## Quick start
+## Быстрый старт
 
 ```bash
 git clone git@github.com:kalitvyan/laravel-boilerplate.git
@@ -39,53 +44,36 @@ cd laravel-boilerplate
 make init
 ```
 
-## Local services
+Через несколько минут:
 
-| Service | URL | Credentials |
-|---|---|---|
-| API | http://localhost:8000 | — |
-| Health (liveness / readiness) | http://localhost:8000/health/live, `/health/ready` | — |
-| Horizon | http://localhost:8000/horizon | — |
-| Mailpit | http://localhost:8025 | — |
-| RustFS console | http://localhost:9001 | `rustfsadmin` / `rustfsadmin` |
-| Grafana | http://localhost:3030 | — |
-| PostgreSQL | `localhost:5432` | `app` / `app` |
+- фронтенд — http://127.0.0.1:3000
+- API — http://127.0.0.1:8000
 
-Host ports can be overridden: `API_PORT=8080 make up`
-(also `POSTGRES_PORT`, `MAILPIT_UI_PORT`, `RUSTFS_PORT`, `RUSTFS_CONSOLE_PORT`, `GRAFANA_PORT`).
+Все команды — `make help`.
 
-## Common commands
-
-```bash
-make help                          # list all commands
-make up / make down                # start / stop the stack
-make logs s=api                    # follow service logs
-make artisan c="route:list"        # run artisan
-make composer c="require foo/bar"  # run composer
-make test                          # run tests
-make qa                            # lint, rector, phpstan, deptrac, tests
-XDEBUG_MODE=debug make up          # start with Xdebug enabled
-```
-
-## Repository layout
+## Структура
 
 ```
-apps/api        Laravel API (bounded contexts in src/)
-apps/web        Next.js frontend (planned)
-packages/       Shared JS packages, generated API client (planned)
-infra/docker    Dockerfiles and Compose stack
-docs/           Architecture notes and ADRs
+apps/api        API на Laravel
+apps/web        Frontend и BFF на Next.js
+packages/       Общие JS-пакеты, сгенерированный клиент API
+infra/docker    Dockerfile'ы и compose-стеки
+docs/           Документация и OpenAPI-спецификация
 ```
 
-## Documentation
+## Документация
 
-- [Architecture](docs/architecture.md)
-- [Architecture Decision Records](docs/adr)
+- [Архитектура](docs/architecture.md) — устройство проекта и его причины
+- [Соглашения](docs/conventions.md) — правила написания кода и типичные ловушки
+- [Разработка](docs/development.md) — локальное окружение и рабочий процесс
+- [Эксплуатация](docs/operations.md) — образы, переменные, наблюдаемость
+- [Решения (ADR)](docs/adr/README.md) — история архитектурных решений
 
-## Security
+## Безопасность
 
-See [SECURITY.md](SECURITY.md).
+О найденных уязвимостях сообщайте через приватные обращения GitHub, см.
+[SECURITY.md](SECURITY.md).
 
-## License
+## Лицензия
 
 [MIT](https://opensource.org/licenses/MIT)
