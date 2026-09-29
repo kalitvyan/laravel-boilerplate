@@ -1,9 +1,9 @@
 # 0010. Cumulative temporality для метрик OTLP
 
-- Status: Accepted
-- Date: 2026-09-24
+- Статус: Принято
+- Дата: 2026-09-24
 
-## Context
+## Контекст
 
 Метрики экспортируются по OTLP в коллектор, который пишет их в Prometheus
 через эндпоинт `/api/v1/otlp`.
@@ -22,7 +22,7 @@
 только cumulative и отбрасывает delta молча. Gauge проходили, потому что у них
 temporality отсутствует.
 
-## Decision
+## Решение
 
 `MetricExporter` создаётся с явной temporality:
 
@@ -30,14 +30,14 @@ temporality отсутствует.
 new MetricExporter($transport, Temporality::CUMULATIVE)
 ```
 
-## Alternatives considered
+## Альтернативы
 
 - **Включить приём delta на стороне Prometheus.** Отклонено: cumulative — нативная
   модель Prometheus, а delta имеет смысл для приёмников вроде Datadog.
 - **Оставить значение по умолчанию.** Отклонено: оно зависит от версии пакета
   и меняется молча.
 
-## Consequences
+## Последствия
 
 - Метрики всех типов доходят до Prometheus.
 - Появляется зависимость от выбранного приёмника: при переходе на приёмник с
